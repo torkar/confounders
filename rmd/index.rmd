@@ -5,7 +5,100 @@ output:
     toc: true
     toc_float: true
     fig_caption: true
+bibliography: references.bib
 ---
 
 # Introduction
 
+This document can be used to replicate the results from the manuscript on confounders. First, we provide a small example that serves as a simple case to build intuition. Second, we provide a larger example, from a previously published study, where we conduct a sensitivity analysis of unobserved confounding.
+
+Let's start by making sure we have some packages needed.
+
+```{r, message=FALSE}
+# Package names
+packages <- c("ggplot2", "brms", "ggdag", "cmdstanr")
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# Packages loading
+invisible(lapply(packages, library, character.only = TRUE))
+```
+
+
+# A first example to build intuition
+
+A confounder ($Z$) is a variable that affects both the treatment ($X$) and the outcome ($Y$), and when a confounder exists we get a spurious (fake) association. In our work we follow the notation of Pearl and claim that confounding is a purely causal concept [@pearl09reason].
+
+We need to distinguish between two types of studies common in software engineering: experiments (randomized controlled trial, RCT) and observational studies. One reason for why experiments are considered gold standard when conducting studies is that confounding is supposed to be a non-issue due to randomized allocation of treatments (and selection of sample), i.e., very simply put, if we randomly allocate the treatment ($X$), then the causal effect of the confounder ($Z$) will not matter. 
+
+A, perhaps, more straightforward way to think about confounding is to contrast experiments with observational studies as 
+
+> [$\ldots$] any context in which the association between an outcome $Y$ and a predictor of interest $X$ 
+> is not the same as it would be, if we had experimentally determined the values of $X$.
+[@mcelreath20statrethinking]{style="float:right"}
+
+A graphical summary (directed acyclic graph), of what we said above, can be visualized like this:
+
+```{r, out.width="60%", fig.align="center"}
+myDAG <- dagify(
+  X ~ Z,
+  Y ~ Z,
+  Y ~ X,
+  exposure = "X", # treatment
+  outcome = "Y",
+  coords = list(
+    x = c(X = 1, Z = 2, Y = 3),
+    y = c(X = 1, Z = 2, Y = 1)
+  )
+)
+ggdag(myDAG) + theme_dag()
+```
+
+In the plot above we see that the confounder $Z$ has a causal effect on the treatment $X$ and the outcome $Y$. Also, $X$ affects $Y$, but that is what we're generally speaking interested in estimating. 
+
+Confounders are scary, but no need to panic. If we condition on a confounder (i.e., include it as a predictor in our model) we are closing the path $X \leftarrow Z \rightarrow Y$, and hence an unbiased estimate of the direct effect of $X$ on $Y$ can be estimated. However, this means that we must have measured $Z$, so we can condition on that variable. As we will see later, omitted variable bias (i.e., we do not have access to some variables) is something we can reason about and provide convincing arguments that it likely does not affect the results of a study. But how dangerous is omitted variable bias and should we take this into account when, e.g., designing a mining software repository study?
+
+Let's generate some fake data first. That way we *know* the truth.
+
+```{r, message=FALSE, cache=TRUE}
+N <- 1e5
+z <- rnorm(N) # exogenous 
+x <- 0.5 * z + rnorm(N) # endogenous
+y <- 0.3 * z + 0.4 * x + rnorm(N) # endogenous; set x = 0.4
+
+d <- data.frame(
+  z = z,
+  x = x,
+  y = y
+)
+
+# next run two models, one where we do not condition on z, and one where we do condition on z
+withoutZ <- brm(
+  y ~ x,
+  data = d,
+  refresh = 0
+)
+
+withZ <- brm(
+  y ~ x + z,
+  data = d,
+  refresh = 0
+)
+```
+
+Disregarding $Z$ (we're not interested in the causal effect of a confounder, and very often no one else is and thus we shouldn't even report them), the estimates we have of $X$, i.e., $\hat{x}$, is what interests us.
+
+```{r}
+fixef(withZ)[2,1]
+fixef(withoutZ)[2,1]
+```
+
+Conditioning on $Z$ allows us to get the correct estimate for $X$, i.e., $\hat{x}_z \approx$ `r round(fixef(withZ)[2,1], 2)`. If we do not condition on $Z$ we get a biased (positive) estimation, i.e., $\hat{x}_{\neg z} \approx$ `r round(fixef(withoutZ)[2,1], 2)`, because of the confounder's effect on both $X$ and $Y$.
+
+# A second more realistic example
+
+# References
