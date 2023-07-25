@@ -124,10 +124,11 @@ If we next look at the other arrow ($Z \rightarrow Y$), we don't need to think a
 
 With these two concepts, the SMD and the $\beta$ estimate for $Z$ on $Y$ we can now add assumptions to our analysis and argue how likely it is that they would hold. According to @linPK98sens we can now do three things:
 
+* Specify $\beta_Z$ and estimate how large SMD needs to be to cancel out the direct effect of $X$ on $Y$.
 * Specify SMD and estimate how large a $\beta_Z$ needs to be to cancel out the direct effect of $X$ on $Y$.
-* Specify $\beta_Z$ amd estimate how large SMD needs to be to cancel out the direct effect of $X$ on $Y$.
 * Finally, by specifying both SMD and $\beta_Z$ we can investigate the number of confounders $n$ needed to cancel out the direct effect of $X$ on $Y$.
 
+### Assumptions concerning $\beta_Z$
 If we continue using the analysis we did initially we can collect the true effect that was estimated (which we know was $0.4$) and assume $\beta_Z = 1.5$, i.e., a 1-unit change in $Z$ would imply a 1.5-unit change in $Y$:
 
 ```{r}
@@ -155,6 +156,10 @@ ggplot(tip_z, aes(x = z, fill = factor(x))) +
   geom_vline(data = tip_z_avg, aes(xintercept = avg, color = factor(x))) + 
   theme(legend.position = "none")
 ```
+
+### Assumptions concerning scaled mean difference
+
+### Assumptions concerning $\beta_Z$ and scaled mean difference
 
 # A second, more realistic, example
 
