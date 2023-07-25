@@ -10,13 +10,13 @@ bibliography: references.bib
 
 # Introduction
 
-This document can be used to replicate the results from the manuscript on confounders. First, we provide a small example that serves as a simple case to build intuition. Second, we provide a larger example, from a previously published study, where we conduct a sensitivity analysis of unobserved confounding.
+This document can be used to replicate the results from the manuscript on confounders. First, we provide a small example that serves as a simple case to build intuition. Second, we provide a larger example, from a previously published study, where we conduct a sensitivity analysis of unobserved/unknown confounders.
 
 Let's start by making sure we have some packages needed.
 
 ```{r, message=FALSE}
 # Package names
-packages <- c("ggplot2", "brms", "ggdag", "cmdstanr")
+packages <- c("ggplot2", "brms", "ggdag", "cmdstanr", "tipr", "broom", "broom.mixed", "tidyverse")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -26,10 +26,15 @@ if (any(installed_packages == FALSE)) {
 
 # Packages loading
 invisible(lapply(packages, library, character.only = TRUE))
+theme_set(theme_minimal())
+# If you want to run with Stan and use MCMC then you need to install
+# cmdstan using `cmdstanr::install_cmdstan(cores=8)` in R.
 ```
 
 
 # A first example to build intuition
+
+## The effect of a confounder
 
 A confounder ($Z$) is a variable that affects both the treatment ($X$) and the outcome ($Y$), and when a confounder exists we get a spurious (fake) association. In our work we follow the notation of Pearl and claim that confounding is a purely causal concept [@pearl09reason].
 
@@ -55,12 +60,13 @@ myDAG <- dagify(
     y = c(X = 1, Z = 2, Y = 1)
   )
 )
+
 ggdag(myDAG) + theme_dag()
 ```
 
 In the plot above we see that the confounder $Z$ has a causal effect on the treatment $X$ and the outcome $Y$. Also, $X$ affects $Y$, but that is what we're generally speaking interested in estimating. 
 
-Confounders are scary, but no need to panic. If we condition on a confounder (i.e., include it as a predictor in our model) we are closing the path $X \leftarrow Z \rightarrow Y$, and hence an unbiased estimate of the direct effect of $X$ on $Y$ can be estimated. However, this means that we must have measured $Z$, so we can condition on that variable. As we will see later, omitted variable bias (i.e., we do not have access to some variables) is something we can reason about and provide convincing arguments that it likely does not affect the results of a study. But how dangerous is omitted variable bias and should we take this into account when, e.g., designing a mining software repository study?
+Confounders are scary, but no need to panic. If we condition on a confounder (i.e., include it as a predictor in our model) we are closing the path $\overrightarrow{X \leftarrow Z \rightarrow Y}$, and hence an unbiased estimate of the direct effect of $X$ on $Y$ can be estimated. However, this means that we must have measured $Z$, so we can condition on that variable. As we will see later, omitted variable bias (i.e., we do not have access to some variables) is something we can reason about and provide convincing arguments that it likely does not affect the results of a study. But how dangerous is omitted variable bias and should we take this into account when, e.g., designing a mining software repository study?
 
 Let's generate some fake data first. That way we *know* the truth.
 
@@ -90,15 +96,65 @@ withZ <- brm(
 )
 ```
 
-Disregarding $Z$ (we're not interested in the causal effect of a confounder, and very often no one else is and thus we shouldn't even report them), the estimates we have of $X$, i.e., $\hat{x}$, is what interests us.
+Disregarding $Z$ (we're seldom interested in the causal effect of a confounder and thus we shouldn't even report it), the estimates we have of $X$, i.e., $\hat{x}$, is what interests us.
 
 ```{r}
 fixef(withZ)[2,1]
 fixef(withoutZ)[2,1]
 ```
 
-Conditioning on $Z$ allows us to get the correct estimate for $X$, i.e., $\hat{x}_z \approx$ `r round(fixef(withZ)[2,1], 2)`. If we do not condition on $Z$ we get a biased (positive) estimation, i.e., $\hat{x}_{\neg z} \approx$ `r round(fixef(withoutZ)[2,1], 2)`, because of the confounder's effect on both $X$ and $Y$.
+Conditioning on $Z$ allows us to get the correct estimate for $X$ since we close the backdoor, i.e., $\hat{x}_z \approx$ `r round(fixef(withZ)[2,1], 2)`. If we don't condition on $Z$ we get a biased (positive) estimate, i.e., $\hat{x}_{\neg z} \approx$ `r round(fixef(withoutZ)[2,1], 2)`, because of the confounder's effect on both $X$ and $Y$.
 
-# A second more realistic example
+There are a few lessons learnt from the above example. First, confounders can have an effect on the estimate. Second, the bias is positive in this case, but can also be negative. Third, if we want to have an unbiased estimate we need to condition on the confounder ($Z$ in this case) to close the backdoor that goes from $\overrightarrow{X \leftarrow Z \rightarrow Y}$.
+
+But if we don't have access to $Z$, i.e., it's unmeasured for som reason, or perhaps unknown, then we are facing omitted variable bias. However, all is not lost. *We can argue if it's likely that a confounder would nullify the causal effect of $X$ on $Y$*.
+
+## Accounting for the unobserved^[A more involved example can be found at https://evalf21.classes.andrewheiss.com/example/confounding-sensitivity/#you-can-never-close-every-backdoor-without-an-experiment] 
+
+If we look at the DAG we made previously we see that there are two arrows going from $Z$. First, we have $Z \rightarrow X$ and then we have $Z \rightarrow Y$. These two paths, when we want to look at unobserved effects, are dependent on each other. If we want to assess the effect of $Z$ on $X$ in these type of analyses one often talks about the Scaled Mean Difference (SMD). The difference between what?
+
+The SMD is the confounder's effect on the treated and the non-treated groups in $X$ as a scaled mean difference. In math, something like this:
+
+$$\mathrm{SMD} = \frac{\bar{Z}_t - \bar{Z}_{\neg t}}{\sigma_Z}$$
+
+The difference between the treated $\bar{Z}_t$ and the untreated $\bar{Z}_{\neg t}$ can then be represented as a difference in $\sigma$. For example, a $3\sigma$, $1\sigma$, or $0.1\sigma$ difference between the treated and untreated groups. 
+
+If we next look at the other arrow ($Z \rightarrow Y$), we don't need to think about the SMD since $Z$ is affecting the outcome $Y$ and not the treatment $X$. Here we can simply estimate the effect as a regular $\beta$ estimate that we're used to, i.e., in our case the $\beta$ estimate of our confounder $Z$. As is common, one could for example say that a $\beta_Z = 3$ would mean that a 1-unit change in $Z$ would imply a 3-unit change in $Y$.
+
+With these two concepts, the SMD and the $\beta$ estimate for $Z$ on $Y$ we can now add assumptions to our analysis and argue how likely it is that they would hold. According to the authors [@linPK98sens] we can now do three things:
+
+* Specify an SMD and estimate how large a $\beta_Z$ needs to be to cancel out the direct effect of $X$ on $Y$.
+* Specify a $\beta_Z$ to estimate how large SMD needs to be to cancel out the direct effect of $X$ on $Y$.
+* Finally, by specifying both SMD and $\beta_Z$ we can investigate the number of confounders $n$ needed to cancel out the direct effect of $X$ on $Y$.
+
+If we continue using the analysis we did initially we can collect the true effect that was estimated (which we know was $0.4$) and assume $\beta_Z = 1.5$, i.e., a 1-unit change in $Z$ would imply a 1.5-unit change in $Y$:
+
+```{r}
+withZ |>
+        broom::tidy(conf.int=TRUE) |>
+        dplyr::filter(term == "x") |>
+        dplyr::pull(conf.low) |>
+        tip(confounder_outcome_effect = 1.5)
+```
+
+A hypothetical unmeasured continuous confounder with $\beta_Z = 1.5$ and $\mathrm{SMD} \approx 2.3$, would cancel out the effect ($0.4$) of $X$ on $Y$. Or in other words, a 1-unit change in an unmeasured $Z$ leading to a 1.5-unit change in $Y$ and *et voilà* you would not have a Nature paper, given our assumptions. Making it more concrete might help.
+
+Say that the confounder $Z$ is number of hours spent on implementing a feature (unmeasured confounder) with $\mu = 45$ and $\sigma = 1.5$. Our standardized difference of $-2.31$ can be transformed to hours by multiplying with our $\sigma = 1.5$, i.e., $1.5 \cdot -2.31 \approx -3.5$. This implies that between treatment and non-treatment we would need to see a difference of approximately $3.5$ hours when implementing a feature. Is this unlikely? Perhaps. But as an empirical researcher you might not bet your life on it if you look at the plot below. More importantly, you should present these results to your readers and argue for why it is unlikely.
+
+```{r, echo=FALSE, out.width="60%", fig.align="center"}
+tip_z <- tibble(x = sample(0:1, N, replace = TRUE)) %>% 
+  mutate(z = rnorm(N, mean = 45 + (-2.31 * 1.5 * x), sd = 1.5))
+
+tip_z_avg <- tip_z %>%
+  dplyr::group_by(x) %>% 
+  dplyr::summarize(avg = mean(z))
+
+ggplot(tip_z, aes(x = z, fill = factor(x))) +
+  geom_density(alpha = 0.5) + 
+  geom_vline(data = tip_z_avg, aes(xintercept = avg, color = factor(x))) + 
+  theme(legend.position = "none")
+```
+
+# A second, more realistic, example
 
 # References
