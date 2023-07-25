@@ -106,7 +106,7 @@ fixef(withoutZ)[2,1]
 
 Conditioning on $Z$ allows us to get the correct estimate for $X$ since we close the backdoor, i.e., $\hat{x}_z \approx$ `r round(fixef(withZ)[2,1], 2)`. If we don't condition on $Z$ we get a biased (positive) estimate, i.e., $\hat{x}_{\neg z} \approx$ `r round(fixef(withoutZ)[2,1], 2)`, because of the confounder's effect on both $X$ and $Y$.
 
-There are a few lessons learnt from the above example. First, confounders can have an effect on the estimate. Second, the bias is positive in this case, but can also be negative. Third, if we want to have an unbiased estimate we need to condition on the confounder ($Z$ in this case) to close the backdoor that goes from $\overrightarrow{X \leftarrow Z \rightarrow Y}$.
+There are a few lessons learnt from the above example. First, confounders can have an effect on the estimate. Second, the bias is positive in this case, but can also be negative (change the confounders effect on $X$, i.e., $0.5$ to $-0.5$ instead and you'll see). Third, if we want to have an unbiased estimate we need to condition on the confounder ($Z$ in this case) to close the backdoor that goes from $\overrightarrow{X \leftarrow Z \rightarrow Y}$.
 
 But if we don't have access to $Z$, i.e., it's unmeasured for som reason, or perhaps unknown, then we are facing omitted variable bias. However, all is not lost. *We can still argue if it's likely that a confounder would nullify the causal effect of $X$ on $Y$*.
 
