@@ -104,29 +104,29 @@ fixef(withZ)[2,1]
 fixef(withoutZ)[2,1]
 ```
 
-Conditioning on $Z$ allows us to get the correct estimate for $X$ since we close the backdoor, i.e., $\hat{x}_z \approx$ `r round(fixef(withZ)[2,1], 2)`. If we don't condition on $Z$ we get a biased (positive) estimate, i.e., $\hat{x}_{\neg z} \approx$ `r round(fixef(withoutZ)[2,1], 2)`, because of the confounder's effect on both $X$ and $Y$.
+Conditioning on $Z$ allows us to get the correct estimate for $X$ ($\hat{x}_z \approx$ `r round(fixef(withZ)[2,1], 2)`) since we close the backdoor. If we don't condition on $Z$ we get a biased (in this case positive) estimate, i.e., $\hat{x}_{\neg z} \approx$ `r round(fixef(withoutZ)[2,1], 2)`, because of the confounder's effect on both $X$ and $Y$.
 
-There are a few lessons learnt from the above example. First, confounders can have an effect on the estimate. Second, the bias is positive in this case, but can also be negative (change the confounders effect on $X$, i.e., $0.5$ to $-0.5$ instead and you'll see). Third, if we want to have an unbiased estimate we need to condition on the confounder ($Z$ in this case) to close the backdoor that goes from $\overrightarrow{X \leftarrow Z \rightarrow Y}$.
+There are a few lessons learnt from the above example. First, confounders can have an effect on the estimate. Second, the bias is positive in this case, but can also be negative (change the confounder's sign on $X$, i.e., from $0.5$ to $-0.5$ instead and you'll see). Third, if we want to have an unbiased estimate we need to condition on the confounder ($Z$ in this case) to close the backdoor that goes from $\overrightarrow{X \leftarrow Z \rightarrow Y}$.
 
 But if we don't have access to $Z$, i.e., it's unmeasured for som reason, or perhaps unknown, then we are facing omitted variable bias. However, all is not lost. *We can still argue if it's likely that a confounder would nullify the causal effect of $X$ on $Y$*.
 
 ## Accounting for the unknown^[A more involved example can be found at https://evalf21.classes.andrewheiss.com/example/confounding-sensitivity/#you-can-never-close-every-backdoor-without-an-experiment] 
 
-If we look at the DAG we made previously we see that there are two arrows going from $Z$. First, we have $Z \rightarrow X$ and then we have $Z \rightarrow Y$. These two paths, when we want to look at unobserved effects, are dependent on each other. If we want to assess the effect of $Z$ on $X$ in these type of analyses one often talks about the Scaled Mean Difference (SMD). The difference between what?
+If we look at the DAG we made previously we see that there are two arrows going from $Z$. First, we have $Z \rightarrow X$ and then we have $Z \rightarrow Y$. These two paths, when we want to look at unobserved effects, are dependent on each other. If we want to assess the effect of $Z$ on $X$ in these type of analyses, one often talks about the Scaled Mean Difference (SMD).
 
 The SMD is the confounder's effect on the treated and the non-treated groups in $X$ as a scaled mean difference. In math, something like this:
 
 $$\mathrm{SMD} = \frac{\bar{Z}_t - \bar{Z}_{\neg t}}{\sigma_Z}$$
 
-The difference between the treated $\bar{Z}_t$ and the untreated $\bar{Z}_{\neg t}$ can then be represented as a difference in $\sigma$. For example, a $3\sigma$, $1\sigma$, or $0.1\sigma$ difference between the treated and untreated groups. 
+The difference between the treated $\bar{Z}_t$ and the untreated $\bar{Z}_{\neg t}$ can then, by using SMD, be represented as a difference in $\sigma$. For example, a $3\sigma$, $1\sigma$, or $0.1\sigma$ difference between the treated and untreated groups. 
 
-If we next look at the other arrow ($Z \rightarrow Y$), we don't need to think about the SMD since $Z$ is affecting the outcome $Y$ and not the treatment $X$. Here we can simply estimate the effect as a regular $\beta$ estimate that we're used to, i.e., in our case the $\beta$ estimate of our confounder $Z$. As is common, one could for example say that a $\beta_Z = 3$ would mean that a 1-unit change in $Z$ would imply a 3-unit change in $Y$.
+If we next look at the other arrow ($Z \rightarrow Y$), we don't need to think about the SMD since $Z$ is affecting the outcome $Y$ and not the treatment $X$. Here we can simply estimate the effect as a regular $\beta$ estimate that we're used to, i.e., in our case the $\beta_Z$ estimate of our confounder $Z$. As is common, one could for example say that $\beta_Z = 3$ would mean that a 1-unit change in $Z$ would imply a 3-unit change in $Y$.
 
 With these two concepts, the SMD and the $\beta$ estimate for $Z$ on $Y$ we can now add assumptions to our analysis and argue how likely it is that they would hold. According to @linPK98sens we can now do three things:
 
 * Specify $\beta_Z$ and estimate how large SMD needs to be to cancel out the direct effect of $X$ on $Y$.
 * Specify SMD and estimate how large a $\beta_Z$ needs to be to cancel out the direct effect of $X$ on $Y$.
-* Finally, by specifying both SMD and $\beta_Z$ we can investigate the number of confounders $n$ needed to cancel out the direct effect of $X$ on $Y$.
+* Finally, by specifying both SMD and $\beta_Z$ we can investigate the number of confounders, $n_c$, needed to cancel out the direct effect of $X$ on $Y$.
 
 ### Assumptions concerning $\beta_Z$
 If we continue using the analysis we did initially we can collect the true effect that was estimated (which we know was $0.4$) and assume $\beta_Z = 1.5$, i.e., a 1-unit change in $Z$ would imply a 1.5-unit change in $Y$:
@@ -139,9 +139,9 @@ withZ |>
         tip(confounder_outcome_effect = 1.5)
 ```
 
-A hypothetical unmeasured continuous confounder with $\beta_Z = 1.5$ and $\mathrm{SMD} \approx 2.3$, would cancel out the effect ($0.4$) of $X$ on $Y$. Or in other words, a 1-unit change in an unmeasured $Z$ leading to a 1.5-unit change in $Y$ and *et voilà* you would not have a Nature paper, given our assumptions. Making it more concrete might help.
+then a hypothetical unmeasured continuous confounder with $\beta_Z = 1.5$ and $\mathrm{SMD} \approx 2.3$, would cancel out the effect ($0.4$) of $X$ on $Y$. Hence, given our assumptions, a 1-unit change in an unmeasured $Z$ leading to a 1.5-unit change in $Y$ and, *et voilà*, you would not have a Nature paper. Making it more concrete might help.
 
-Say that the confounder $Z$ is number of hours spent on implementing a feature (unmeasured confounder) with $\mu = 45$ and $\sigma = 1.5$. Our standardized difference of $-2.31$ can be transformed to hours by multiplying with our $\sigma = 1.5$, i.e., $1.5 \cdot -2.31 \approx -3.5$. This implies that between treatment and non-treatment we would need to see a difference of approximately $3.5$ hours when implementing a feature. Is this unlikely? Perhaps. But as an empirical researcher you might not bet your life on it if you look at the plot below. More importantly, you should present these results to your readers and argue for why it is unlikely. Even better, go measure $Z$ carefully.
+Say that the confounder $Z$ is number of hours spent on implementing a feature (unmeasured confounder) with $\mu = 45$ and $\sigma = 1.5$. Our standardized difference of $-2.31$ can be transformed to hours by multiplying with our $\sigma = 1.5$, i.e., $1.5 \cdot -2.31 \approx -3.5$. This implies that between treatment and non-treatment we would need to see a difference of approximately $3.5$ hours when implementing a feature. Is this unlikely? Perhaps, context matters. However, as an empirical researcher you might not want to bet your life on it if you look at the plot below. More importantly, you should present these results to your readers and argue for why it is unlikely or, even better, go measure $Z$ carefully.
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center"}
 tip_z <- tibble(x = sample(0:1, N, replace = TRUE)) %>% 
