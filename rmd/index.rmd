@@ -122,7 +122,7 @@ The difference between the treated $\bar{Z}_t$ and the untreated $\bar{Z}_{\neg 
 
 If we next look at the other arrow ($Z \rightarrow Y$), we don't need to think about the SMD since $Z$ is affecting the outcome $Y$ and not the treatment $X$. Here we can simply estimate the effect as a regular $\beta$ estimate that we're used to, i.e., in our case the $\beta_Z$ estimate of our confounder $Z$. As is common, one could for example say that $\beta_Z = 3$ would mean that a 1-unit change in $Z$ would imply a 3-unit change in $Y$.
 
-With these two concepts, the SMD and the $\beta$ estimate for $Z$ on $Y$ we can now add assumptions to our analysis and argue how likely it is that they would hold. According to @linPK98sens we can now do three analyses:
+With these two concepts, the SMD and the $\beta_Z$ estimate, we can now add assumptions to our analysis and argue how likely it is that they would hold. According to @linPK98sens we now have three options to choose between:
 
 * Specify $\beta_Z$ and estimate how large SMD needs to be to cancel out the direct effect of $X$ on $Y$.
 * Specify SMD and estimate how large a $\beta_Z$ needs to be to cancel out the direct effect of $X$ on $Y$.
@@ -142,7 +142,7 @@ tidy(withZ, conf.int=TRUE) |>
 
 then a hypothetical unmeasured continuous confounder with $\beta_Z = 1.5$ and $\mathrm{SMD} \approx -2.3$, would cancel out the effect ($\beta_X = 0.4$) of $X$ on $Y$. Hence, given our assumptions, a 1-unit change in an unmeasured $Z$ leading to a 1.5-unit change in $Y$ and, *et voilà*, you would not have a Nature paper. Making it more concrete might help.
 
-Say that the confounder $Z$ is number of hours spent on implementing a feature (unmeasured confounder) with $\mu = 45$ and $\sigma = 1.5$. Our standardized difference of $-2.3$ can be transformed to hours by multiplying with our $\sigma = 1.5$, i.e., $1.5 \cdot -2.3 \approx -3.5$. This implies that between treatment and non-treatment we would need to see a difference of approximately $3.5$ hours when implementing a feature. Is this unlikely? Perhaps; context matters. However, as an empirical researcher you might not want to bet your life on it if you look at the plot below; this is how large a difference there is between the two populations. More importantly, you should present these results to your readers and argue for why it is unlikely to be the case or, even better, go measure $Z$ carefully.
+Say that the confounder $Z$ is number of hours spent on implementing a feature (unmeasured confounder) with $\mu = 45$ and $\sigma = 1.5$. Our standardized difference of $-2.3$ can be transformed to hours by multiplying with our $\sigma = 1.5$, i.e., $1.5 \cdot -2.3 \approx -3.5$. This implies that between treatment and non-treatment we would need to see a difference of approximately $3.5$ hours when implementing a feature. Is this unlikely? Perhaps; context matters. However, as an empirical researcher you might not want to bet your life on it if you look at the plot below; this is how large a difference there would be between the two populations. More importantly, you should present these results to your readers and argue for why it is unlikely that a counfounder exists, or go measure it carefully.
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center"}
 tip_z <- tibble(x = sample(0:1, N, replace = TRUE)) |> 
@@ -171,11 +171,9 @@ tidy(withZ, conf.int=TRUE) |>
         tip(exposure_confounder_effect = -2.3)
 ```
 
-Above we see that $\beta_Z \approx 1.50$ (i.e., the confounder_outome_effect), thus we have an indication that this works both ways. Given that we have now introduced to distinct concepts used to estimate unobserved/unknown confounders, we can now turn out attention to a more involved example.
+Above we see that $\beta_Z \approx 1.50$ (i.e., the confounder_outome_effect), thus we have an indication that this works both ways. Given that we have introduced to distinct concepts used to estimate unobserved/unknown confounders, we can now turn out attention to a more involved example.
 
 # A second, more realistic, example
-
-
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center"}
 var_labs <- c(
@@ -228,9 +226,9 @@ ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
 
 In [@feldtSFT23sysrev], the authors extracted causal links from several primary studies and assembled disparate evidence into a Unified Directed Acyclic Graph (UDAG). The purpose was to, in the future, analyze the direct effect of Business Area ($BA$) on Productivity, ($P$), i.e., Business Area can be seen as a "treatment" and Productivity as the outcome. 
 
-If one would want to design the next observational study investigating this particular outcome and treatment, the idea would be that one could use the UDAG to know what variables to collect; after all, some studies contained some variables, but no study contained all variables. However, the UDAG, as we will see, can also be used for sensitivity analysis of unknown confunders. That would allow a future study to either be more sure of not facing omitted variable bias from start, i.e., the UDAG is likely to be correct, or to make sure to collect variables that are unobserved, i.e., the UDAG needs to be complemented with new variables.
+If one would want to design the next observational study investigating this particular outcome and treatment, the idea would be that one could use the UDAG to know what variables to collect; after all, some studies contained some variables, but no study contained all variables in the UDAG. However, the UDAG, as we will see, can also be used for sensitivity analysis of unknown confunders. That would allow a future study to either be more sure of not facing omitted variable bias from start, i.e., the UDAG is likely to be correct, or to make sure to collect variables that are currently unobserved, i.e., the UDAG needs to be complemented with new variables.
 
-The above UDAG is clearly a more involved example and contains several of the elemental constructs one can find in a DAG. Organization ($O$) is a confounder since it points to the treatment and the outcome. Hardware ($H$) is part of a pipe since $BA \rightarrow H \rightarrow P$. The lower part also contains several ancestors of the outcome. Additionally, we also see that there are no colliders in the UDAG. So, this seems to be a simple task. Let's see what we should condition on by providing our UDAG :
+The above UDAG is clearly a more involved example and contains several of the elemental constructs one can find in a DAG. Organization ($O$) is a confounder since it points to the treatment and the outcome. Hardware ($H$) is part of a pipe since $BA \rightarrow H \rightarrow P$. The lower part also contains several ancestors of the outcome. Additionally, we also see that there are no colliders (e.g., $X \rightarrow Z \leftarrow Y$) in the UDAG. So, this seems to be a simple task. Let's see what we should condition on by calculating the adjustment set for the UDAG :
 
 ```{r}
 adjustmentSets(udag, effect = "direct")
@@ -238,7 +236,7 @@ adjustmentSets(udag, effect = "direct")
 
 It seems our adjustment set is $\mathcal{A} = \{ H, O \}$. By conditioning on $H$ and $O$ (i.e., adjusting for $H$ and $O$) we will be able to estimate the direct effect of $BA$ on $P$. But what if there are unknown confounders? It's not unlikely given that the studies that contributed to the UDAG are all observational. 
 
-Let's do this systematically and overlay numbers on the plot to make sure that we don't miss anything. First, we focus on the nine edges in the upper part of the UDAG since they are all connected to $BA$ directly or indirectly without needing to use $P$.
+Let's do this systematically and overlay numbers on the plot to make sure that we don't miss anything. First, we focus on the nine edges in the upper part of the UDAG since they are all connected to $BA$ directly or indirectly without needing to go through $P$.
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center"}
 ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
@@ -266,9 +264,9 @@ The potential answer to the above question would be one of three:
 
 1. No it would not (n/a).
 2. By conditioning on other variable(s) we close the path and then the confounder will not affect the results (co).
-3. Or we truly have a case of omitted variable bias, which means that we need to conduct a sensitivity analysis (ovb).
+3. We truly have a case of omitted variable bias, which means that we need to conduct a sensitivity analysis (ovb).
 
-In the first case, a confounder would not affect the possibility for us to receive an unbiased causal estimate of the direct effect. In the second case, the confounder would affect our possibility to get an unbiased estimate; however, if we condition on $1,\ldots,n$ other variables, the confounder would no longer affect the results and this become n/a. Finally, the third case, is the one we would not like to see. Here a confounder will affect our possibility to get an unbiased estimate. This means that we either need to add additional assumptions and argue that this confounder is unlikely to exist, or think harder and find such a confounder and then measure it.
+In the first case, a confounder would not affect the possibility for us to receive an unbiased causal estimate of the direct effect. In the second case, the confounder would affect our possibility to get an unbiased estimate; however, if we condition on $1,\ldots,n$ other variables, the confounder would no longer affect the results and thus falls under the n/a category. Finally, the third case, is the one we would not like to see. Here a potential confounder would affect our possibility to get an unbiased estimate. This means that we either need to add additional assumptions and argue that this confounder is unlikely to exist, or think harder and find such a confounder and then measure it.
 
 For each edge in the plot above, let's analyze what it would imply if an unknown confounder truly existed:
 
@@ -292,7 +290,7 @@ Ultimately, this implies that if we want to estimate the direct causal effect of
 
 $\mathcal{A} = \{ H, O, PL, L, PT, S, TS \}$
 
-However, there's still a challenge in dealing with Edges 7 and 8, i.e., in these two cases we need to analyze how large a confounder needs to be to nullify the direct causal effect between $BA$ and $P$. Let's do just that.
+However, remember, there's still a challenge in dealing with Edges 7 and 8, i.e., in these two cases we need to analyze how large a confounder needs to be to nullify the direct causal effect of $BA$ on $P$. Let's do just that.
 
 ## Model design and execution
 
