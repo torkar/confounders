@@ -31,10 +31,10 @@ U2 -> n/a
 U3 -> iff exists need to condition on L
 U4 -> n/a
 U5 -> n/a
-U6 -> omitted variable bias
-U7 -> omitted variable bias
-U8 -> iff exists need to condition on PL
-U9 -> omitted variable bias
+U6 (9 in paper) -> n/a
+U7 (8) -> omitted variable bias
+U8 (6) -> iff exists need to condition on PL
+U9 (7) -> omitted variable bias
 [BA <- U10 -> PT] -> iff exists need to condition on PT
 [BA <- U11 -> S] -> iff exists need to condition on S
 [BA <- U12 -> TS] -> iff exists need to condition on TS

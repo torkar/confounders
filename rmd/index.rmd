@@ -11,13 +11,13 @@ bibliography: references.bib
 
 # Introduction
 
-This document can be used to replicate the results from the manuscript on confounders. First, we provide a small example that serves as a simple case to build intuition. Second, we provide a larger example, from a previously published study, where we conduct a sensitivity analysis of unobserved/unknown confounders.
+This document can be used to replicate the results from the manuscript on confounders. First, we provide a small example that serves as a simple case to build intuition. Second, we provide a larger example where we conduct a sensitivity analysis of unobserved/unknown confounders.
 
-Let's start by making sure we have some packages needed.
+Let's start by making sure we have some needed packages.
 
 ```{r, message=FALSE}
 # Package names
-packages <- c("ggplot2", "brms", "ggdag", "cmdstanr", "tipr", "broom", "broom.mixed", "tidyverse")
+packages <- c("ggplot2", "brms", "ggdag", "cmdstanr", "tipr", "broom", "broom.mixed", "tidyverse", "dagitty")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -108,13 +108,13 @@ Conditioning on $Z$ allows us to get the correct estimate for $X$ ($\hat{x}_z \a
 
 There are a few lessons learnt from the above example. First, confounders can have an effect on the estimate. Second, the bias is positive in this case, but can also be negative (change the confounder's sign on $X$, i.e., from $0.5$ to $-0.5$ instead and you'll see). Third, if we want to have an unbiased estimate we need to condition on the confounder ($Z$ in this case) to close the backdoor that goes from $\overrightarrow{X \leftarrow Z \rightarrow Y}$.
 
-But if we don't have access to $Z$, i.e., it's unmeasured for som reason, or perhaps unknown, then we are facing omitted variable bias. However, all is not lost. *We can still argue if it's likely that a confounder would nullify the causal effect of $X$ on $Y$*.
+But if we don't have access to $Z$, i.e., it's unmeasured for some reason, or perhaps unknown, then we are facing omitted variable bias. However, all is not lost. *We can still argue if it's likely that a confounder would nullify the causal effect of $X$ on $Y$*.
 
 ## Accounting for the unknown^[A more involved example can be found at https://evalf21.classes.andrewheiss.com/example/confounding-sensitivity/#you-can-never-close-every-backdoor-without-an-experiment] 
 
-If we look at the DAG we made previously we see that there are two arrows going from $Z$. First, we have $Z \rightarrow X$ and then we have $Z \rightarrow Y$. These two paths, when we want to look at unobserved effects, are dependent on each other. If we want to assess the effect of $Z$ on $X$ in these type of analyses, one often talks about the Scaled Mean Difference (SMD).
+If we look at the DAG we made previously we see that there are two arrows going from $Z$. First, we have $Z \rightarrow X$ and then we have $Z \rightarrow Y$. These two paths, when we want to look at unobserved effects, are dependent on each other. If we want to assess the effect of $Z$ on $X$ in these type of analyses, one often talks about the Standardized Mean Difference (SMD).
 
-The SMD is the confounder's effect on the treated and the non-treated groups in $X$ as a scaled mean difference. In math, something like this:
+The SMD is the confounder's effect on the treated and the non-treated groups in $X$. In math, something like this:
 
 $$\mathrm{SMD} = \frac{\bar{Z}_t - \bar{Z}_{\neg t}}{\sigma_Z}$$
 
@@ -122,33 +122,34 @@ The difference between the treated $\bar{Z}_t$ and the untreated $\bar{Z}_{\neg 
 
 If we next look at the other arrow ($Z \rightarrow Y$), we don't need to think about the SMD since $Z$ is affecting the outcome $Y$ and not the treatment $X$. Here we can simply estimate the effect as a regular $\beta$ estimate that we're used to, i.e., in our case the $\beta_Z$ estimate of our confounder $Z$. As is common, one could for example say that $\beta_Z = 3$ would mean that a 1-unit change in $Z$ would imply a 3-unit change in $Y$.
 
-With these two concepts, the SMD and the $\beta$ estimate for $Z$ on $Y$ we can now add assumptions to our analysis and argue how likely it is that they would hold. According to @linPK98sens we can now do three things:
+With these two concepts, the SMD and the $\beta$ estimate for $Z$ on $Y$ we can now add assumptions to our analysis and argue how likely it is that they would hold. According to @linPK98sens we can now do three analyses:
 
 * Specify $\beta_Z$ and estimate how large SMD needs to be to cancel out the direct effect of $X$ on $Y$.
 * Specify SMD and estimate how large a $\beta_Z$ needs to be to cancel out the direct effect of $X$ on $Y$.
 * Finally, by specifying both SMD and $\beta_Z$ we can investigate the number of confounders, $n_c$, needed to cancel out the direct effect of $X$ on $Y$.
 
+Next we will focus on the first two analyses, since they are more common.
+
 ### Assumptions concerning $\beta_Z$
 If we continue using the analysis we did initially we can collect the true effect that was estimated (which we know was $0.4$) and assume $\beta_Z = 1.5$, i.e., a 1-unit change in $Z$ would imply a 1.5-unit change in $Y$:
 
 ```{r}
-withZ |>
-        tidy(conf.int=TRUE) |>
+tidy(withZ, conf.int=TRUE) |>
         filter(term == "x") |>
-        pull(conf.low) |>
+        pull(estimate) |>
         tip(confounder_outcome_effect = 1.5)
 ```
 
-then a hypothetical unmeasured continuous confounder with $\beta_Z = 1.5$ and $\mathrm{SMD} \approx 2.3$, would cancel out the effect ($0.4$) of $X$ on $Y$. Hence, given our assumptions, a 1-unit change in an unmeasured $Z$ leading to a 1.5-unit change in $Y$ and, *et voilà*, you would not have a Nature paper. Making it more concrete might help.
+then a hypothetical unmeasured continuous confounder with $\beta_Z = 1.5$ and $\mathrm{SMD} \approx -2.3$, would cancel out the effect ($\beta_X = 0.4$) of $X$ on $Y$. Hence, given our assumptions, a 1-unit change in an unmeasured $Z$ leading to a 1.5-unit change in $Y$ and, *et voilà*, you would not have a Nature paper. Making it more concrete might help.
 
-Say that the confounder $Z$ is number of hours spent on implementing a feature (unmeasured confounder) with $\mu = 45$ and $\sigma = 1.5$. Our standardized difference of $-2.31$ can be transformed to hours by multiplying with our $\sigma = 1.5$, i.e., $1.5 \cdot -2.31 \approx -3.5$. This implies that between treatment and non-treatment we would need to see a difference of approximately $3.5$ hours when implementing a feature. Is this unlikely? Perhaps, context matters. However, as an empirical researcher you might not want to bet your life on it if you look at the plot below. More importantly, you should present these results to your readers and argue for why it is unlikely or, even better, go measure $Z$ carefully.
+Say that the confounder $Z$ is number of hours spent on implementing a feature (unmeasured confounder) with $\mu = 45$ and $\sigma = 1.5$. Our standardized difference of $-2.3$ can be transformed to hours by multiplying with our $\sigma = 1.5$, i.e., $1.5 \cdot -2.3 \approx -3.5$. This implies that between treatment and non-treatment we would need to see a difference of approximately $3.5$ hours when implementing a feature. Is this unlikely? Perhaps; context matters. However, as an empirical researcher you might not want to bet your life on it if you look at the plot below. More importantly, you should present these results to your readers and argue for why it is unlikely or, even better, go measure $Z$ carefully.
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center"}
-tip_z <- tibble(x = sample(0:1, N, replace = TRUE)) %>% 
-  mutate(z = rnorm(N, mean = 45 + (-2.31 * 1.5 * x), sd = 1.5))
+tip_z <- tibble(x = sample(0:1, N, replace = TRUE)) |> 
+  mutate(z = rnorm(N, mean = 45 + (-2.3 * 1.5 * x), sd = 1.5))
 
-tip_z_avg <- tip_z %>%
-  group_by(x) %>% 
+tip_z_avg <- tip_z |>
+  group_by(x) |>
   summarize(avg = mean(z))
 
 ggplot(tip_z, aes(x = z, fill = factor(x))) +
@@ -157,10 +158,136 @@ ggplot(tip_z, aes(x = z, fill = factor(x))) +
   theme(legend.position = "none")
 ```
 
-### Assumptions concerning scaled mean difference
+### Assumptions concerning SMD
 
-### Assumptions concerning $\beta_Z$ and scaled mean difference
+As previously explained, there are two arrows going from $Z$. In the previous section we focused on the arrow $Z \rightarrow Y$, i.e., setting the $\beta_Z$ estimate to analyze the size of SMD needed to cancel out our causal effect. Here we will now do the opposite, i.e., given an SMD, how large a $\beta_Z$ is needed to cancel out the causal effect of $X \rightarrow Y$.
+
+For the sake of completness we'll assume $\mathrm{SMD} = -2.3$ to validate the result in the previous section, i.e., we should end up with $\beta_Z \approx 1.5$.
+
+```{r}
+tidy(withZ, conf.int=TRUE) |>
+        filter(term == "x") |>
+        pull(estimate) |>
+        tip(exposure_confounder_effect = -2.3)
+```
+
+Above we see that $\beta_Z \approx 1.50$ (i.e., the confounder_outome_effect), thus we have an indication that this works both ways. Given that we have now introduced to distinct concepts used to estimate unobserved/unknown confounders, we can now turn out attention to a more involved example.
 
 # A second, more realistic, example
+
+
+
+```{r, echo=FALSE, out.width="60%", fig.align="center"}
+var_labs <- c(
+  `P` = "P",
+  `BA` = "BA",
+  `H` = "H",
+  `PL` = "PL",
+  `L` = "L",
+  `O` = "O",
+  `PT` = "PT",
+  `S` = "S",
+  `TS` = "TS"
+)
+
+col_labs <- c(
+  `P` = "black", `BA` = "black", `H` = "grey60", `PL` = "grey60",
+  `L` = "grey60", `O` = "grey60", `PT` = "grey60", `S` = "grey60",
+  `TS` = "grey60"
+)
+
+udag <- ggdag::dagify(
+H ~ BA,
+P ~ BA,
+P ~ H,
+PL ~ H,
+P ~ L,
+BA ~ O,
+L ~ O,
+P ~ O,
+P ~ PL,
+P ~ PT,
+P ~ S,
+TS ~ S,
+P ~ TS,
+exposure = "BA",
+outcome = "P"
+)
+
+df <- udag %>%
+  node_canonical(seed = 7) %>%
+  dplyr::mutate(var_labs = var_labs[name], cols = col_labs[name])
+
+UDAGplot <- ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
+  geom_dag_point(mapping = aes(colour = name), show.legend = FALSE) +
+  geom_dag_edges_link() +
+  scale_colour_manual(values = df$data$cols) +
+  geom_dag_text(mapping = aes(label = var_labs), parse = TRUE) + 
+  theme_dag()
+
+UDAGplot
+```
+
+In [@feldtSFT23sysrev], the authors extract causal links from several primary studies and assemble all disparate evidence into a Unified Directed Acyclic Graph (UDAG). The purpose is to estimate the direct effect of Business Area ($BA$) on Productivity, ($P$), i.e., Business Area can be seen as a "treatment" and Productivity is the outcome.
+
+The above UDAG is clearly a more involved example and contains two of the elemental constructs one can find in a DAG. Organization ($O$) is a confounder since it point to the treatment and the outcome. Hardware ($H$) is part of a pipe since $BA \rightarrow H \rightarrow P$. The lower part also contains several ancestors of the outcome. Additionally, we also see that there are no colliders in the UDAG. So, this seems to be a simple task. Let's see what we should condition on by providing our UDAG :
+
+```{r}
+adjustmentSets(udag, effect = "direct")
+```
+
+It seems our adjustment set is $\mathcal{A} = \{ H, O \}$. By conditioning on $H$ and $O$ (i.e., adjusting for $H$ and $O$) we will be able to estimate the direct effect of $BA$ on $P$. But what if there are unknown confounders? It's not unlikely given that the studies that contributed to the UDAG are all considered to be observational. It is unfortunately common that many published observational studies in software engineering stop here and don't seriously account for threats to internal validity.
+
+Let's do this systematically and overlay numbers on the plot to make it easier to make sure that we don't miss anything. First, we focus on the nine edges in the upper part of the UDAG since they are all connected to $BA$ directly or indirectly without needing to use $P$.
+
+```{r, echo=FALSE, out.width="60%", fig.align="center"}
+ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
+  geom_dag_point(mapping = aes(colour = name), show.legend = FALSE) +
+  geom_dag_edges_link() +
+  scale_colour_manual(values = df$data$cols) +
+  geom_dag_text(mapping = aes(label = var_labs), parse = TRUE) +
+  annotate("text", x = 0, y = 1.17, label = "1") +
+  annotate("text", x = 0.9, y = 1.2, label = "2") +
+  annotate("text", x = 1.75, y = 0.7, label = "3") +
+  annotate("text", x = 1.3, y = -0.1, label = "4") +
+  annotate("text", x = -0.4, y = -0.15, label = "5") +
+  annotate("text", x = 0.87, y = 0.4, label = "9") +
+  annotate("text", x = 0.4, y = 0.4, label = "8") +
+  annotate("text", x = -0.8, y = 0.6, label = "6") +
+  annotate("text", x = -0.13, y = 0.3, label = "7") +
+  theme_dag()
+```
+
+If we look at the plot above, and take Edge 1 as an example, the question we're asking is: 
+
+> If there would be a confounder $C$ between $H$ and $BA$, i.e. $H \leftarrow C \rightarrow BA$, would that affect our possibility to estimate the direct effect of $BA$ on $P$?
+
+For each path, let's analyze what it would imply if an unknown confounder truly exists (we use "n/a" to annotate that such a confounder would not cause any problem):
+
+1. n/a
+2. n/a
+3. iff it exists need to condition on $L$
+4. n/a
+5. n/a
+6. iff it exists need to condition on $PL$
+7. Omitted variable bias
+8. Omitted variable bias
+9. n/a
+
+How did we come to the results above? Well, analyzing the UDAG according to Pearl's causal calculus [@pearl09reason] leads to the above results and with experience one receives intuition when analyzing DAGs. However, one can also use software to get some help, e.g., the [dagitty](https://dagitty.net) package in R. If you are so inclined you can verify [online](https://dagitty.net/dags.html?id=P8mw_j) that our assessment above is correct.
+
+To summarize, we can make life easier by conditioning on $\mathcal{A} = \{ H, O, PL, L \}$, in addition to the treatment, of course. However, we still have a challenge dealing with Edges 7 and 8. If an unknown confounder exists between the two nodes, on each of those two edges, then we need to fall back on our sensitivity analysis of unknown confounders. However, before we do that, let's first look at the bottom half.
+
+First, if there's a confounder $PT \leftarrow C \rightarrow BA$ or $PT \leftarrow C \rightarrow H$ then we are in trouble. But if we condition on $PT$ we close these paths and even gain higher precision in our causal estimate, since $PT$ is an ancestor of the outcome $P$. Hence, we should add $PT$ to our adjustment set. Next, imagine there's a confounder $S \leftarrow C \rightarrow BA$ or $S \leftarrow C \rightarrow H$. That would make it impossible for us to estimate the causal effect correctly. However, as in the previous case, conditioning on $S$ will close that path. Hence, $S$ should be added to our adjustment set. Finally, $TS$ should also be added to our adjustment set for the same reasons as in the previous two cases.
+
+Ultimately, this implies that if we want to estimate the direct causal effect of $BA$ on $P$, we need to condition on 
+
+$\mathcal{A} = \{ H, O, PL, L, PT, S, TS \}$
+
+However, we still have a challenge dealing with Edges 7 and 8, i.e., we need to analyze how large a confounder there needs to be to nullify any direct causal effect between $BA$ and $P$ along those two edges. Let's do just that, but we need to start with designing and executing a model and assess the direct causal effect of $BA$ on $P$.
+
+## Model design and execution
+
+## Sensitivity analysis of unknown confounders
 
 # References
