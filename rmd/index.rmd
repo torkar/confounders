@@ -284,9 +284,11 @@ Ultimately, this implies that if we want to estimate the direct causal effect of
 
 $\mathcal{A} = \{ H, O, PL, L, PT, S, TS \}$
 
-However, we still have a challenge dealing with Edges 7 and 8, i.e., we need to analyze how large a confounder there needs to be to nullify any direct causal effect between $BA$ and $P$ along those two edges. Let's do just that, but we need to start with designing and executing a model and assess the direct causal effect of $BA$ on $P$.
+However, we still have a challenge dealing with Edges 7 and 8, i.e., we need to analyze how large a confounder there needs to be to nullify any direct causal effect between $BA$ and $P$ along those two edges. Let's do just that, but we need to start with designing and executing a model and assess the direct causal effect of $BA$ on $P$. 
 
 ## Model design and execution
+
+Generate data, set diff sizes for direct effect (check sizes and signs in primary studies), and then do sensitivity analysis of the confounders to see if we should go out and hunt for more data before running the study.
 
 ## Sensitivity analysis of unknown confounders
 
