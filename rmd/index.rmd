@@ -228,9 +228,11 @@ UDAGplot <- ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = ye
 UDAGplot
 ```
 
-In [@feldtSFT23sysrev], the authors extract causal links from several primary studies and assemble all disparate evidence into a Unified Directed Acyclic Graph (UDAG). The purpose is to estimate the direct effect of Business Area ($BA$) on Productivity, ($P$), i.e., Business Area can be seen as a "treatment" and Productivity is the outcome.
+In [@feldtSFT23sysrev], the authors extracted causal links from several primary studies and assembled disparate evidence into a Unified Directed Acyclic Graph (UDAG). The purpose was to in the future analyze the direct effect of Business Area ($BA$) on Productivity, ($P$), i.e., Business Area can be seen as a "treatment" and Productivity as the outcome. 
 
-The above UDAG is clearly a more involved example and contains two of the elemental constructs one can find in a DAG. Organization ($O$) is a confounder since it point to the treatment and the outcome. Hardware ($H$) is part of a pipe since $BA \rightarrow H \rightarrow P$. The lower part also contains several ancestors of the outcome. Additionally, we also see that there are no colliders in the UDAG. So, this seems to be a simple task. Let's see what we should condition on by providing our UDAG :
+If one would want to design the next observational study investigating this particular outcome and treatment, the idea would be that one could use the UDAG to know what variables to collect; after all some studies contained some variables, but no study contained all variables. However, the UDAG, as we will see, can also be used for sensitivity analysis of unknown confunders. That would allow a future study to either be more sure of not facing omitted variable bias from start, i.e., the UDAG is likely to be correct, or to make sure to collect variables that are unobserved, the UDAG needs to be complemented with new variables.
+
+The above UDAG is clearly a more involved example and contains several of the elemental constructs one can find in a DAG. Organization ($O$) is a confounder since it points to the treatment and the outcome. Hardware ($H$) is part of a pipe since $BA \rightarrow H \rightarrow P$. The lower part also contains several ancestors of the outcome. Additionally, we also see that there are no colliders in the UDAG. So, this seems to be a simple task. Let's see what we should condition on by providing our UDAG :
 
 ```{r}
 adjustmentSets(udag, effect = "direct")
@@ -238,7 +240,7 @@ adjustmentSets(udag, effect = "direct")
 
 It seems our adjustment set is $\mathcal{A} = \{ H, O \}$. By conditioning on $H$ and $O$ (i.e., adjusting for $H$ and $O$) we will be able to estimate the direct effect of $BA$ on $P$. But what if there are unknown confounders? It's not unlikely given that the studies that contributed to the UDAG are all considered to be observational. It is unfortunately common that many published observational studies in software engineering stop here and don't seriously account for threats to internal validity.
 
-Let's do this systematically and overlay numbers on the plot to make it easier to make sure that we don't miss anything. First, we focus on the nine edges in the upper part of the UDAG since they are all connected to $BA$ directly or indirectly without needing to use $P$.
+Let's do this systematically and overlay numbers on the plot to make sure that we don't miss anything. First, we focus on the nine edges in the upper part of the UDAG since they are all connected to $BA$ directly or indirectly without needing to use $P$.
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center"}
 ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
@@ -266,17 +268,17 @@ For each path, let's analyze what it would imply if an unknown confounder truly 
 
 1. n/a
 2. n/a
-3. iff it exists need to condition on $L$
+3. iff it exists, need to condition on $L$
 4. n/a
 5. n/a
-6. iff it exists need to condition on $PL$
+6. iff it exists, need to condition on $PL$
 7. Omitted variable bias
 8. Omitted variable bias
 9. n/a
 
 How did we come to the results above? Well, analyzing the UDAG according to Pearl's causal calculus [@pearl09reason] leads to the above results and with experience one receives intuition when analyzing DAGs. However, one can also use software to get some help, e.g., the [dagitty](https://dagitty.net) package in R. If you are so inclined you can verify [online](https://dagitty.net/dags.html?id=P8mw_j) that our assessment above is correct.
 
-To summarize, we can make life easier by conditioning on $\mathcal{A} = \{ H, O, PL, L \}$, in addition to the treatment, of course. However, we still have a challenge dealing with Edges 7 and 8. If an unknown confounder exists between the two nodes, on each of those two edges, then we need to fall back on our sensitivity analysis of unknown confounders. However, before we do that, let's first look at the bottom half.
+To summarize, we can make life easier by conditioning on $\mathcal{A} = \{ H, O, PL, L \}$, in addition to the treatment, of course. However, we still have a challenge dealing with Edges 7 and 8. If an unknown confounder exists between the two nodes on each of those two edges, then we need to fall back on our sensitivity analysis of unknown confounders. However, before we do that, let's first look at the bottom half.
 
 First, if there's a confounder $PT \leftarrow C \rightarrow BA$ or $PT \leftarrow C \rightarrow H$ then we are in trouble. But if we condition on $PT$ we close these paths and even gain higher precision in our causal estimate, since $PT$ is an ancestor of the outcome $P$. Hence, we should add $PT$ to our adjustment set. Next, imagine there's a confounder $S \leftarrow C \rightarrow BA$ or $S \leftarrow C \rightarrow H$. That would make it impossible for us to estimate the causal effect correctly. However, as in the previous case, conditioning on $S$ will close that path. Hence, $S$ should be added to our adjustment set. Finally, $TS$ should also be added to our adjustment set for the same reasons as in the previous two cases.
 
@@ -284,7 +286,7 @@ Ultimately, this implies that if we want to estimate the direct causal effect of
 
 $\mathcal{A} = \{ H, O, PL, L, PT, S, TS \}$
 
-However, we still have a challenge dealing with Edges 7 and 8, i.e., we need to analyze how large a confounder there needs to be to nullify any direct causal effect between $BA$ and $P$ along those two edges. Let's do just that, but we need to start with designing and executing a model and assess the direct causal effect of $BA$ on $P$. 
+However, we still have a challenge dealing with Edges 7 and 8, i.e., we need to analyze how large a confounder there needs to be to nullify any direct causal effect between $BA$ and $P$ along those two edges. Let's do just that, but we need to start with designing and executing a model and assess the direct causal effect of $BA$ on $P$ using simulated data.
 
 ## Model design and execution
 
