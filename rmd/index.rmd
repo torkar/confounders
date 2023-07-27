@@ -97,7 +97,7 @@ withZ <- brm(
 )
 ```
 
-Disregarding $Z$ (we're seldom interested in the causal effect of a confounder and thus we shouldn't even report it), the estimates we have of $X$, i.e., $\hat{x}$, is what interests us.
+Disregarding the estimate for $Z$ (we're seldom interested in the causal effect of a confounder, but there are exceptions), the estimates we have of $X$, i.e., $\hat{x}$, is what interests us.
 
 ```{r}
 fixef(withZ)[2,1]
@@ -106,13 +106,13 @@ fixef(withoutZ)[2,1]
 
 Conditioning on $Z$ allows us to get the correct estimate for $X$ ($\hat{x}_z \approx$ `r round(fixef(withZ)[2,1], 2)`) since we close the backdoor. If we don't condition on $Z$ we get a biased (in this case positive) estimate, i.e., $\hat{x}_{\neg z} \approx$ `r round(fixef(withoutZ)[2,1], 2)`, because of the confounder's effect on both $X$ and $Y$.
 
-There are a few lessons learnt from the above example. First, confounders can have an effect on the estimate. Second, the bias is positive in this case, but can also be negative (change the confounder's sign on $X$, i.e., from $0.5$ to $-0.5$ instead and you'll see). Third, if we want to have an unbiased estimate we need to condition on the confounder ($Z$ in this case) to close the backdoor that goes from $\overrightarrow{X \leftarrow Z \rightarrow Y}$.
+There are a few lessons learnt from the above example. First, confounders can have an effect on the estimate. Second, the bias is positive in this case, but can also be negative (change the confounder's sign on $X$, i.e., from $0.5$ to $-0.5$ instead and you'll see). Third, if we want to have an unbiased estimate we need to condition on the confounder ($Z$ in this case), to close the backdoor that goes from $\overrightarrow{X \leftarrow Z \rightarrow Y}$.
 
 But if we don't have access to $Z$, i.e., it's unmeasured for some reason, or perhaps unknown, then we are facing omitted variable bias. However, all is not lost. *We can still argue if it's likely that a confounder would nullify the causal effect of $X$ on $Y$*.
 
 ## Accounting for the unknown^[A more involved example can be found at https://evalf21.classes.andrewheiss.com/example/confounding-sensitivity/#you-can-never-close-every-backdoor-without-an-experiment] 
 
-If we look at the DAG we made previously we see that there are two arrows going from $Z$. First, we have $Z \rightarrow X$ and then we have $Z \rightarrow Y$. These two paths, when we want to look at unobserved effects, are dependent on each other. If we want to assess the effect of $Z$ on $X$ in these type of analyses, one often talks about the Standardized Mean Difference (SMD).
+If we look at the DAG we introduced previously, we see that there are two arrows going from $Z$. First, we have $Z \rightarrow X$ and then we have $Z \rightarrow Y$. These two paths, when we want to look at unobserved effects, are dependent on each other. If we want to assess the effect of $Z$ on $X$ in these type of analyses, one often talks about the Standardized Mean Difference (SMD).
 
 The SMD is the confounder's effect on the treated and the non-treated groups in $X$. In math, something like this:
 
@@ -171,7 +171,7 @@ tidy(withZ, conf.int=TRUE) |>
         tip(exposure_confounder_effect = -2.3)
 ```
 
-Above we see that $\beta_Z \approx 1.50$ (i.e., the confounder_outome_effect), thus we have an indication that this works both ways. Given that we have introduced to distinct concepts used to estimate unobserved/unknown confounders, we can now turn out attention to a more involved example.
+Above we see that $\beta_Z \approx 1.50$ (i.e., the confounder_outome_effect), thus we have an indication that this works both ways. Given that we have introduced two distinct concepts used to estimate unobserved/unknown confounders, we can now turn out attention to a more involved example.
 
 # A second, more realistic, example
 
@@ -262,11 +262,11 @@ If we look at the plot above, and take Edge 1 as an example, the question we're 
 
 The potential answer to the above question would be one of three: 
 
-1. No it would not (n/a).
-2. By conditioning on other variable(s) we close the path and then the confounder will not affect the results (co).
+1. It would not affect the estimate (n/a).
+2. By conditioning on other variable(s) we close the path and then the confounder will not affect the estimate (co).
 3. We truly have a case of omitted variable bias, which means that we need to conduct a sensitivity analysis (ovb).
 
-In the first case, a confounder would not affect the possibility for us to receive an unbiased causal estimate of the direct effect. In the second case, the confounder would affect our possibility to get an unbiased estimate; however, if we condition on $1,\ldots,n$ other variables, the confounder would no longer affect the results and thus falls under the n/a category. Finally, the third case, is the one we would not like to see. Here a potential confounder would affect our possibility to get an unbiased estimate. This means that we either need to add additional assumptions and argue that this confounder is unlikely to exist, or think harder and find such a confounder and then measure it.
+In the first case (n/a), a confounder would not affect the possibility for us to receive an unbiased causal estimate of the direct effect. In the second case (co), the confounder would affect our possibility to get an unbiased estimate; however, if we condition on $1,\ldots,n$ other variables, the confounder would no longer affect the results and thus fall under the n/a category. Finally, the third case (ovb), is the one we would not like to see. Here a potential confounder would affect our possibility to get an unbiased estimate. This means that we either need to add additional assumptions and argue that this confounder is unlikely to exist, or think harder, identify such a confounder and then measure it.
 
 For each edge in the plot above, let's analyze what it would imply if an unknown confounder truly existed:
 
@@ -284,13 +284,13 @@ How did we come to the results above? Well, analyzing the UDAG according to Pear
 
 To summarize, we can make life easier by also conditioning on $PL$ and $L$, i.e., $\mathcal{A} = \{ H, O, PL, L \}$. However, we still have a challenge dealing with Edges 7 and 8. If an unknown confounder exists between the two nodes on each of those two edges, then we need to fall back on our sensitivity analysis of unknown confounders. However, before we do that, let's first look at the bottom half.
 
-First, if there's a confounder $PT \leftarrow C \rightarrow BA$ or $PT \leftarrow C \rightarrow H$ then we are in trouble. But if we condition on $PT$ we close these paths and even gain higher accuracy in our causal estimate, since $PT$ is an ancestor of the outcome $P$. Hence, we should add $PT$ to our adjustment set. Next, imagine there's a confounder $S \leftarrow C \rightarrow BA$ or $S \leftarrow C \rightarrow H$. That would make it impossible for us to estimate the causal effect correctly. However, as in the previous case, conditioning on $S$ will close that path. Hence, $S$ should be added to our adjustment set. Finally, $TS$ should also be added to our adjustment set for the same reasons as in the previous two cases.
+First, if there's a confounder $PT \leftarrow C \rightarrow BA$ or $PT \leftarrow C \rightarrow H$ then we are in trouble. But if we condition on $PT$ we close these paths and even gain higher accuracy in our causal estimate, since $PT$ is an ancestor of the outcome $P$. Hence, we should add $PT$ to our adjustment set. Next, imagine there's a confounder $S \leftarrow C \rightarrow BA$ or $S \leftarrow C \rightarrow H$. That would make it impossible for us to estimate the causal effect correctly. However, as in the previous case, conditioning on $S$ will close that path. Hence, $S$ should be added to our adjustment set. Finally, $TS$ should also be added to our adjustment set, for the same reasons as in the previous two cases.
 
 Ultimately, this implies that if we want to estimate the direct causal effect of $BA$ on $P$, we need to condition on 
 
 $\mathcal{A} = \{ H, O, PL, L, PT, S, TS \}$
 
-However, remember, there's still a challenge in dealing with Edges 7 and 8, i.e., in these two cases we need to analyze how large a confounder needs to be to nullify the direct causal effect of $BA$ on $P$. Let's do just that.
+to account for possible unknown confounders. However, remember, there's still a challenge in dealing with Edges 7 and 8, i.e., in these two cases we need to analyze how large a confounder needs to be to nullify the direct causal effect of $BA$ on $P$. Let's do just that.
 
 ## Model design and execution
 
