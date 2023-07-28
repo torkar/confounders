@@ -4,6 +4,7 @@
 .DS_Store
 index_cache/
 index_files/
+DomainTypeVarExtraction_20230621.xlsx
 
 # Session Data files
 .RData
