@@ -17,19 +17,21 @@ Let's start by making sure we have some needed packages.
 
 ```{r, message=FALSE}
 # Package names
-packages <- c("ggplot2", "brms", "ggdag", "cmdstanr", "tipr", "broom", "broom.mixed", "tidyverse", "dagitty", "bayesfam")
+packages <- c("ggplot2", "brms", "ggdag", "cmdstanr", "tipr", "broom", "broom.mixed", "tidyverse", "dagitty", "bayesfam", "fastDummies")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
 if (any(installed_packages == FALSE)) {
   install.packages(packages[!installed_packages])
+  # bayesfam you need to install via GitHub...
 }
 
 # Packages loading
 invisible(lapply(packages, library, character.only = TRUE))
 theme_set(theme_minimal())
-# If you want to run with Stan and use MCMC then you need to install
-# cmdstan using `cmdstanr::install_cmdstan(cores=8)` in R.
+# If you want to run with Stan and use MCMC then you need to install cmdstan
+# > cmdstanr::install_cmdstan(cores=8)
+# in R.
 ```
 
 
@@ -316,7 +318,7 @@ Generate data, set diff sizes for direct effect (check sizes and signs in primar
 #d <- data.frame(y = y, x = x1)
 #brm(y ~ x, data = d, family = Beta())
 
-n <- 100
+n <- 250
 
 c0 <- 0.07
 c1 <- 0.1
@@ -324,11 +326,11 @@ c2 <- -0.15
 c3 <- -0.03
 c4 <- 0.9
 
-aHat <- rep(NA, 100)
-bHat <- rep(NA, 100)
-cHat <- rep(NA, 100)
-dHat <- rep(NA, 100)
-eHat <- rep(NA, 100)
+aHat <- rep(NA, n)
+bHat <- rep(NA, n)
+cHat <- rep(NA, n)
+dHat <- rep(NA, n)
+eHat <- rep(NA, n)
 
 # run once so we can save the compile model
 x <- sample(x=c("A","B", "C", "D", "E"), 
@@ -345,8 +347,8 @@ p[6,1] <- "normal(0,2)"
 p[7,1] <- "normal(0,2)"
 m <- brm(bf(y ~ x, phi ~ 1), data = d, prior = p, family = Beta)
 
-# now simulate 100 times
-for(i in 1:100) {
+# now simulate x times
+for(i in 1:500) {
   x <- sample(x=c("A","B", "C", "D", "E"), 
               size=n, replace=TRUE, prob=rep(1/5, 5))
   m_x <- as.matrix(dummy_cols(x)[,-1])
@@ -356,12 +358,6 @@ for(i in 1:100) {
   d <- data.frame(y = y, x = x)
 
   m <- update(m, newdata = d, family = Beta)
-
-  #aHat[i] <- ranef(m)$x[1,1,1]
-  #bHat[i] <- ranef(m)$x[2,1,1]
-  #cHat[i] <- ranef(m)$x[3,1,1]
-  #dHat[i] <- ranef(m)$x[4,1,1]
-  #eHat[i] <- ranef(m)$x[5,1,1]
 
   aHat[i] <- fixef(m)[1]
   bHat[i] <- fixef(m)[1] + fixef(m)[3]
@@ -378,9 +374,6 @@ round(c(
     c4 = mean(eHat)  # 0.9
     ), 3)
 ```
-
-
-
 
 ## Sensitivity analysis of unknown confounders
 
