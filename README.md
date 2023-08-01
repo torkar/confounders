@@ -39,7 +39,7 @@ U9 (7) -> omitted variable bias
 [BA <- U11 -> S] -> iff exists need to condition on S
 [BA <- U12 -> TS] -> iff exists need to condition on TS
 
-Hence, a full set should be {P,A,O,H,PL,L,PT,S,TS} (conditioning on PL,L,PT,S,TS would take care of unknown confunders U3 and U8, and U10-U12), but we still have a problem with U6,U7,U9.
+Hence, a full set should be {P,A,O,H,PL,L,PT,S,TS} (conditioning on PL,L,PT,S,TS would take care of unknown confunders U3 and U8, and U10-U12), but we still have a problem with U7 and U9.
 
 dag {
 bb="0,0,1,1"
