@@ -17,7 +17,7 @@ Let's start by making sure we have some needed packages.
 
 ```{r, message=FALSE}
 # Package names
-packages <- c("ggplot2", "brms", "ggdag", "cmdstanr", "tipr", "broom", "broom.mixed", "tidyverse", "dagitty", "bayesfam", "fastDummies")
+packages <- c("ggplot2", "brms", "ggdag", "cmdstanr", "tipr", "broom", "broom.mixed", "tidyverse", "dagitty", "bayesfam", "simcausal")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -29,6 +29,7 @@ if (any(installed_packages == FALSE)) {
 # Packages loading
 invisible(lapply(packages, library, character.only = TRUE))
 theme_set(theme_minimal())
+options(simcausal.verbose = FALSE)
 # If you want to run with Stan and use MCMC then you need to install cmdstan
 # > cmdstanr::install_cmdstan(cores=8)
 # in R.
@@ -413,6 +414,80 @@ Hence, the three variables, which are of interest to us, are:
 
 Let's design a generative model according to the above specification.
 
+```{r}
+N <- 500 # Sample size
+beta_H <- 0.3
+beta_BA <- 0.2
+
+D <- DAG.empty()
+
+D <- D +
+  # Set BA to categorical (c=3)
+  node("BA", 
+     distr = "rcat.b1",
+     probs = c(0.5, 0.25, 0.25)) +
+  # Set H to categorical (c=3)
+  # Make sure we include BA in H!
+  node("H",
+     distr = "rcat.b1",
+     probs = (BA==1)*c(0.7,0.1,0.2) + (BA==2)*c(0.2,0.1,0.7) + (BA==3)*.(0.2,0.1,0.7)) + 
+  # Generate Beta(x, \phi) with BA and H. Set phi = 4 for now.
+  # Note: We use rbeta_mean() which is a mean parameterization of Beta.
+  node("P",
+     distr = "rbeta_mean",
+     phi = 4,
+     mu = inv_logit_scaled(beta_H * H + beta_BA * BA))
+
+# Need to use inv_logit() since mu in Beta needs it when modelling
+Dset <- set.DAG(D, vecfun  = "inv_logit_scaled")
+
+# Gen N samples
+d <- sim(Dset, n = N)
+
+p <- get_prior(P ~ H + BA, family = Beta, data = d)
+p[1,1] <- "normal(0,1)"
+p[4,1] <- "normal(0,2)"
+
+m <- brm(P ~ H + BA, family = Beta, data = d, prior = p)
+
+H_Hat <- rep(NA, N)
+BA_Hat <- rep(NA, N)
+
+for(i in 1:N) {
+  d <- sim(Dset, n = N)
+  m <- update(m, newdata = d, family = Beta, refresh = 0)
+  H_Hat[i] <- fixef(m)[1] + fixef(m)[2]
+  BA_Hat[i] <- fixef(m)[1] + fixef(m)[3]
+}
+
+# Margin of error 0.95
+err_H <- qt(0.975,df=N-1)*sd(H_Hat)/sqrt(N)
+err_BA <- qt(0.975,df=N-1)*sd(BA_Hat)/sqrt(N)
+
+# Lower and upper CI
+H_ci_l <- round(mean(H_Hat) - err_H, 3)
+H_ci_u <- round(mean(H_Hat) + err_H, 3)
+BA_ci_l <- round(mean(BA_Hat) - err_BA, 3)
+BA_ci_u <- round(mean(BA_Hat) + err_BA, 3)
+H_mu <- round(mean(H_Hat), 3)
+BA_mu <- round(mean(BA_Hat), 3)
+
+print(paste0("H=", beta_H, " , while 95% CI for mu of H is: ", H_mu, "[", H_ci_l, ",", H_ci_u, "]"))
+print(paste0("BA=", beta_BA, " , while 95% CI for mu of BA is: ", BA_mu, "[", BA_ci_l, ",", BA_ci_u, "]"))
+
+# One can always try to add more noise N(0,1) to P.
+# Since P is already logit() it's easy:
+# d$P <- 1 / (1 + exp(-rnorm(n = N, mean = d$P, sd = 1)))
+```
+
+## Sensitivity analysis of unknown confounders
+
+# References
+
+
+
+
+<!--
 ```{r, include=FALSE, eval=FALSE}
 # Set sample size.
 n <- 500
@@ -457,6 +532,9 @@ pred_H <- cbind(1, m_H %*% c(a, b, c, d, e))
 
 ##### Generate outcome #####
 # It's a Beta we're aiming for so "mu" uses logit link
+
+# this is basically P <- BA and P <- H
+# but we need BA -> H -> P and BA -> P
 pr <- inv_logit_scaled(pred_BA[,2] + pred_H[,2])
 
 # Use mean parameterization for Beta
@@ -623,7 +701,4 @@ round(c(
     c4 = mean(eHat)  # 0.9
     ), 3)
 ```
-
-## Sensitivity analysis of unknown confounders
-
-# References
+-->
