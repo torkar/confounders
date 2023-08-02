@@ -414,10 +414,12 @@ Hence, the three variables, which are of interest to us, are:
 
 Let's design a generative model according to the above specification.
 
-```{r}
-N <- 500 # Sample size
-beta_H <- 0.3
-beta_BA <- 0.2
+```{r, cache=TRUE}
+N <- 250 # Sample size
+
+# Set beta effects
+b_H <- 0.3
+b_BA <- 0.2
 
 D <- DAG.empty()
 
@@ -426,17 +428,19 @@ D <- D +
   node("BA", 
      distr = "rcat.b1",
      probs = c(0.5, 0.25, 0.25)) +
+  
   # Set H to categorical (c=3)
   # Make sure we include BA in H!
   node("H",
      distr = "rcat.b1",
      probs = (BA==1)*c(0.7,0.1,0.2) + (BA==2)*c(0.2,0.1,0.7) + (BA==3)*.(0.2,0.1,0.7)) + 
+  
   # Generate Beta(x, \phi) with BA and H. Set phi = 4 for now.
   # Note: We use rbeta_mean() which is a mean parameterization of Beta.
   node("P",
      distr = "rbeta_mean",
      phi = 4,
-     mu = inv_logit_scaled(beta_H * H + beta_BA * BA))
+     mu = inv_logit_scaled(b_H * H + b_BA * BA))
 
 # Need to use inv_logit() since mu in Beta needs it when modelling
 Dset <- set.DAG(D, vecfun  = "inv_logit_scaled")
@@ -444,40 +448,41 @@ Dset <- set.DAG(D, vecfun  = "inv_logit_scaled")
 # Gen N samples
 d <- sim(Dset, n = N)
 
+# Set sane priors
 p <- get_prior(P ~ H + BA, family = Beta, data = d)
 p[1,1] <- "normal(0,1)"
 p[4,1] <- "normal(0,2)"
 
+# Run once so we can reuse model in sim
 m <- brm(P ~ H + BA, family = Beta, data = d, prior = p)
 
-H_Hat <- rep(NA, N)
-BA_Hat <- rep(NA, N)
+# Store results from all the runs
+H_hat <- rep(NA, N)
+BA_hat <- rep(NA, N)
 
+# Simulate
 for(i in 1:N) {
   d <- sim(Dset, n = N)
   m <- update(m, newdata = d, family = Beta, refresh = 0)
-  H_Hat[i] <- fixef(m)[1] + fixef(m)[2]
-  BA_Hat[i] <- fixef(m)[1] + fixef(m)[3]
+  H_hat[i] <- fixef(m)[1] + fixef(m)[2]
+  BA_hat[i] <- fixef(m)[1] + fixef(m)[3]
 }
 
 # Margin of error 0.95
-err_H <- qt(0.975,df=N-1)*sd(H_Hat)/sqrt(N)
-err_BA <- qt(0.975,df=N-1)*sd(BA_Hat)/sqrt(N)
+H_err <- qt(0.975, df = N - 1) * sd(H_hat)/sqrt(N)
+BA_err <- qt(0.975, df = N - 1) * sd(BA_hat)/sqrt(N)
 
 # Lower and upper CI
-H_ci_l <- round(mean(H_Hat) - err_H, 3)
-H_ci_u <- round(mean(H_Hat) + err_H, 3)
-BA_ci_l <- round(mean(BA_Hat) - err_BA, 3)
-BA_ci_u <- round(mean(BA_Hat) + err_BA, 3)
-H_mu <- round(mean(H_Hat), 3)
-BA_mu <- round(mean(BA_Hat), 3)
+H_ci_l <- round(mean(H_hat) - H_err, 3)
+H_ci_u <- round(mean(H_hat) + H_err, 3)
+BA_ci_l <- round(mean(BA_hat) - BA_err, 3)
+BA_ci_u <- round(mean(BA_hat) + BA_err, 3)
+H_mu <- round(mean(H_hat), 3)
+BA_mu <- round(mean(BA_hat), 3)
 
-print(paste0("H=", beta_H, " , while 95% CI for mu of H is: ", H_mu, "[", H_ci_l, ",", H_ci_u, "]"))
-print(paste0("BA=", beta_BA, " , while 95% CI for mu of BA is: ", BA_mu, "[", BA_ci_l, ",", BA_ci_u, "]"))
-
-# One can always try to add more noise N(0,1) to P.
-# Since P is already logit() it's easy:
-# d$P <- 1 / (1 + exp(-rnorm(n = N, mean = d$P, sd = 1)))
+print(paste0("H=", beta_H, ", while 95% CI for mu of H is: ", H_mu, "[", H_ci_l, ",", H_ci_u, "]"))
+print(paste0("BA=", beta_BA, ", while 95% CI for mu of BA is: ", BA_mu, "[", BA_ci_l, ",", BA_ci_u, "]"))
+# nice and tight
 ```
 
 ## Sensitivity analysis of unknown confounders
