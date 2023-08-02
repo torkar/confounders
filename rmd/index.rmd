@@ -480,8 +480,8 @@ BA_ci_u <- format(round(mean(BA_hat) + BA_err, 3), nsmall = 3)
 H_mu <- format(round(mean(H_hat), 3), nsmall = 3)
 BA_mu <- format(round(mean(BA_hat), 3), nsmall = 3)
 
-print(paste0("H=", beta_H, ", while 95% CI for mu of H is: ", H_mu, "[", H_ci_l, ",", H_ci_u, "]"))
-print(paste0("BA=", beta_BA, ", while 95% CI for mu of BA is: ", BA_mu, "[", BA_ci_l, ",", BA_ci_u, "]"))
+print(paste0("H=", b_H, ", while 95% CI for mu of H is: ", H_mu, "[", H_ci_l, ",", H_ci_u, "]"))
+print(paste0("BA=", b_BA, ", while 95% CI for mu of BA is: ", BA_mu, "[", BA_ci_l, ",", BA_ci_u, "]"))
 # nice and tight
 ```
 
