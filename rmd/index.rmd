@@ -19,7 +19,7 @@ Let's start by making sure we have some needed packages.
 
 ```{r, message=FALSE}
 # Package names
-packages <- c("simcausal", "ggplot2", "brms", "ggdag", "cmdstanr", "tipr", "broom", "broom.mixed", "tidyverse", "dagitty", "bayesfam")
+packages <- c("ggplot2", "brms", "ggdag", "cmdstanr", "tipr", "broom", "broom.mixed", "tidyverse", "dagitty", "bayesfam", "simcausal", "rethinking")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -446,28 +446,24 @@ D <- D +
      distr = "rcat.b1",
      probs = c(0.5, 0.25, 0.25)) +
   
-  # Set H to categorical (c=3).
+  # Set H to categorical (c=3), starting at 1
   # Make sure we include BA in H!
   node("H",
      distr = "rcat.b1",
      probs = (BA == 1) * c(0.7, 0.1, 0.2) + (BA == 2) * c(0.2, 0.1, 0.7) + (BA == 3) * c(0.2, 0.1, 0.7)) + 
   
-  # Generate Beta(mu, phi) with BA and H.
+  # Generate Beta(mu, phi) with H and BA.
   # Note: We use rbeta_mean() which is a mean parameterization of Beta.
   node("P",
      distr = "rbeta_mean",
      phi = 4,
-     mu = inv_logit_scaled(b_H * H + b_BA * BA))
+     mu = inv_logit(b_H * H + b_BA * BA))
 
 # Need to use inv_logit() since mu in Beta needs it when modelling
-Dset <- set.DAG(D, vecfun  = "inv_logit_scaled")
+Dset <- set.DAG(D, vecfun  = "inv_logit")
 
 # Gen N samples
-d <- sim(Dset, n = N)
-
-# Could add more noise N(0,1), to d$P.
-# Since P is already logit() it's easy:
-# d$P <- 1/(1+exp(-rnorm(n = N, mean = d$P, sd = 1)))
+d <- simcausal::sim(Dset, n = N)
 
 # Set sane priors
 p <- get_prior(P ~ H + BA, family = Beta, data = d)
@@ -478,49 +474,30 @@ p[4,1] <- "normal(0,2)"
 m <- brm(P ~ H + BA, family = Beta, data = d, prior = p, refresh = 0)
 
 # Store results from all the runs
-H_hat <- rep(NA, N)
 BA_hat <- rep(NA, N)
 
 # Simulate
 for(i in 1:N) {
-  d <- sim(Dset, n = N)
+  d <- simcausal::sim(Dset, n = N)
   m <- update(m, newdata = d, family = Beta, refresh = 0)
-  H_hat[i] <- fixef(m)[1] + fixef(m)[2]
   BA_hat[i] <- fixef(m)[1] + fixef(m)[3]
 }
 
 # Margin of error 0.95
-H_err <- qt(0.975, df = N - 1) * sd(H_hat)/sqrt(N)
 BA_err <- qt(0.975, df = N - 1) * sd(BA_hat)/sqrt(N)
 
 # Lower and upper CI
-H_ci_l <- format(round(mean(H_hat) - H_err, 3), nsmall = 3)
-H_ci_u <- format(round(mean(H_hat) + H_err, 3), nsmall = 3)
 BA_ci_l <- format(round(mean(BA_hat) - BA_err, 3), nsmall = 3)
 BA_ci_u <- format(round(mean(BA_hat) + BA_err, 3), nsmall = 3)
-H_mu <- format(round(mean(H_hat), 3), nsmall = 3)
 BA_mu <- format(round(mean(BA_hat), 3), nsmall = 3)
 
-print(paste0("H=", b_H, ", while 95% CI for simulated mu is: ", H_mu, "[", H_ci_l, ",", H_ci_u, "]"))
 print(paste0("BA=", b_BA, ", while 95% CI for simulated mu is: ", BA_mu, "[", BA_ci_l, ",", BA_ci_u, "]"))
 # nice and tight
 ```
 
-The simulation indicates (even when we add noise) that we can recover the parameters we set. Let's create a data set where we also have a confounder $C$.
+The simulation indicates (even when we add noise) that we can recover the parameters we set. Let's create a data set where we also have a confounder $C$, which we condition on.
 
-```{r, eval=FALSE}
-## from http://tr.im/hH5A
-logsumexp <- function (x) {
-  y = max(x)
-  y + log(sum(exp(x - y)))
-}
-
-softmax <- function (x) {
-  exp(x - logsumexp(x))
-}
-```
-
-```{r 2nd-sim, cache=TRUE, warnings=FALSE, message=FALSE}
+```{r 2nd-sim, cache=TRUE, warning=FALSE, message=FALSE}
 N <- 250 # Sample size
 
 # Set beta effects
@@ -542,36 +519,27 @@ D <- D +
   # Let C be a causal effect on BA.
   node("BA", 
     distr = "rcat.b1",
-    probs = C * c(0.5, 0.25, 0.25)) + 
+    probs = softmax(C * c(0.5, 0.25, 0.25))) + 
 
   # Set H to categorical (c=3).
   # Let BA be a causal effect on H.
   node("H",
     distr = "rcat.b1",
     probs = (BA == 1) * c(0.7, 0.1, 0.2) + (BA == 2) * c(0.2, 0.1, 0.7) + (BA == 3) * c(0.2, 0.1, 0.7)) + 
-  
-  # Generate Beta(mu, phi) with BA and H.
+
+  # Generate Beta(mu, phi) with H, BA, and C.
   # Note: We use rbeta_mean() which is a mean parameterization of Beta.
   node("P",
     distr = "rbeta_mean",
     phi = 4,
-    mu = inv_logit_scaled(b_H * H + b_BA * BA + b_C * C))
+    mu = inv_logit(b_H * H + b_BA * BA + b_C * C))
 
 # Need to use inv_logit() since mu in Beta needs it when modelling
-Dset <- set.DAG(D, vecfun  = c("inv_logit_scaled"))
+Dset <- set.DAG(D, vecfun  = c("inv_logit", "softmax"))
 
 # Gen N samples
-d <- sim(Dset, n = N)
-
-# TODO:
-# need to remove this...
-# Worst case run with brms + rstan since sampler fails...
-# sanity check and nudge if P == 1.0
-d$P[d$P == 1] <- 1 - 0.001 # ffs fix this
-
-# Could add more noise, e.g., N(0,1), to d$P.
-# Since P is already logit it's easy:
-# d$P <- 1/(1+exp(-rnorm(n = N, mean = d$P, sd = 1)))
+d <- simcausal::sim(Dset, n = N)
+d$P[d$P == 1] <- 0.99999999 # nudge iff 1
 
 # Set sane priors
 p <- get_prior(P ~ H + BA + C, family = Beta, data = d)
@@ -582,55 +550,41 @@ p[5,1] <- "normal(0,2)"
 m <- brm(P ~ H + BA + C, family = Beta, data = d, prior = p, refresh = 0, backend = "rstan")
 
 # Store results from all the runs
-H_hat <- rep(NA, N)
 BA_hat <- rep(NA, N)
-C_hat <- rep(NA, N)
 
 # Simulate
 for(i in 1:N) {
-  d <- sim(Dset, n = N)
-  
-  # sanity check and nudge if P == 1.0
-  # no need for a flipped zi model
-  d[d$P == 1,] <- 1 - 0.001 # ffs this changes not only P
+  d <- simcausal::sim(Dset, n = N)
+  d$P[d$P == 1] <- 0.99999999
 
   # update model using new data
   m <- update(m, newdata = d, family = Beta, refresh = 0)
 
   # store coefficients
-  H_hat[i] <- fixef(m)[1] + fixef(m)[2]
   BA_hat[i] <- fixef(m)[1] + fixef(m)[3]
-  C_hat[i] <- fixef(m)[1] + fixef(m)[4]
-
-  print(i)
 }
 
 # Margin of error 0.95
-H_err <- qt(0.975, df = N - 1) * sd(H_hat)/sqrt(N)
 BA_err <- qt(0.975, df = N - 1) * sd(BA_hat)/sqrt(N)
-C_err <- qt(0.975, df = N - 1) * sd(C_hat)/sqrt(N)
 
 # Lower and upper CI
-H_ci_l <- format(round(mean(H_hat) - H_err, 3), nsmall = 3)
-H_ci_u <- format(round(mean(H_hat) + H_err, 3), nsmall = 3)
 BA_ci_l <- format(round(mean(BA_hat) - BA_err, 3), nsmall = 3)
 BA_ci_u <- format(round(mean(BA_hat) + BA_err, 3), nsmall = 3)
-C_ci_l <- format(round(mean(C_hat) - C_err, 3), nsmall = 3)
-C_ci_u <- format(round(mean(C_hat) + C_err, 3), nsmall = 3)
 
-# means for each parameter
-H_mu <- format(round(mean(H_hat), 3), nsmall = 3)
+# mean
 BA_mu <- format(round(mean(BA_hat), 3), nsmall = 3)
-C_mu <- format(round(mean(C_hat), 3), nsmall = 3)
 
-print(paste0("H=", b_H, ", while 95% CI for simulated mu is: ", H_mu, "[", H_ci_l, ",", H_ci_u, "]"))
 print(paste0("BA=", b_BA, ", while 95% CI for simulated mu is: ", BA_mu, "[", BA_ci_l, ",", BA_ci_u, "]"))
-print(paste0("C=", b_C, ", while 95% CI for simulated mu is: ", C_mu, "[", C_ci_l, ",", C_ci_u, "]"))
-```
 
-Now let's see what we get when we don't include the confounder.
+###############################################################################
+############### and w/o the confounder to see that it all works ###############
+###############################################################################
 
-```{r 3rd-sim, cache=TRUE, warnings=FALSE, message=FALSE}
+# Gen N samples
+d <- simcausal::sim(Dset, n = N)
+d$P[d$P == 1] <- 0.99999999
+
+# Set sane priors
 p <- get_prior(P ~ H + BA, family = Beta, data = d)
 p[1,1] <- "normal(0,1)"
 p[4,1] <- "normal(0,2)"
@@ -639,46 +593,33 @@ p[4,1] <- "normal(0,2)"
 m <- brm(P ~ H + BA, family = Beta, data = d, prior = p, refresh = 0, backend = "rstan")
 
 # Store results from all the runs
-H_hat <- rep(NA, N)
 BA_hat <- rep(NA, N)
 
 # Simulate
 for(i in 1:N) {
-  d <- sim(Dset, n = N)
-  
-  # sanity check and nudge if P == 1.0
-  # no need for a flipped zi model
-  d[d$P == 1,] <- 1 - 0.001 # ffs fix this
+  d <- simcausal::sim(Dset, n = N)
+  d$P[d$P == 1] <- 0.99999999
 
   # update model using new data
   m <- update(m, newdata = d, family = Beta, refresh = 0)
 
   # store coefficients
-  H_hat[i] <- fixef(m)[1] + fixef(m)[2]
   BA_hat[i] <- fixef(m)[1] + fixef(m)[3]
 }
 
 # Margin of error 0.95
-H_err <- qt(0.975, df = N - 1) * sd(H_hat)/sqrt(N)
 BA_err <- qt(0.975, df = N - 1) * sd(BA_hat)/sqrt(N)
 
 # Lower and upper CI
-H_ci_l <- format(round(mean(H_hat) - H_err, 3), nsmall = 3)
-H_ci_u <- format(round(mean(H_hat) + H_err, 3), nsmall = 3)
 BA_ci_l <- format(round(mean(BA_hat) - BA_err, 3), nsmall = 3)
 BA_ci_u <- format(round(mean(BA_hat) + BA_err, 3), nsmall = 3)
 
-# means for each parameter
-H_mu <- format(round(mean(H_hat), 3), nsmall = 3)
+# mean
 BA_mu <- format(round(mean(BA_hat), 3), nsmall = 3)
 
-print(paste0("H=", b_H, ", while 95% CI for simulated mu is: ", H_mu, "[", H_ci_l, ",", H_ci_u, "]"))
 print(paste0("BA=", b_BA, ", while 95% CI for simulated mu is: ", BA_mu, "[", BA_ci_l, ",", BA_ci_u, "]"))
 ```
-
-
-
-<!-- Remember to do coeff/(1-coeff) to transform Beta reg coef to OR, before tipping results -->
+<!-- TODO: Remember to do coeff/(1-coeff) to transform Beta reg coef to OR, before tipping results -->
 
 ## Sensitivity analysis of unknown confounders
 
