@@ -15,9 +15,7 @@ bibliography: references.bib
 
 This document can be used to replicate the results from the manuscript on confounders. First, we provide a small example that serves as a simple case to build intuition. Second, we provide a larger example where we conduct a sensitivity analysis of unobserved/unknown confounders.
 
-Let's start by making sure we have some needed packages.
-
-```{r, message=FALSE}
+```{r, include=FALSE}
 # Package names
 packages <- c("ggplot2", "brms", "ggdag", "cmdstanr", "tipr", "broom", "broom.mixed", "tidyverse", "dagitty", "bayesfam", "simcausal", "rethinking")
 
@@ -33,7 +31,6 @@ if (any(installed_packages == FALSE)) {
 invisible(lapply(packages, library, character.only = TRUE))
 theme_set(theme_minimal())
 options(simcausal.verbose = FALSE)
-# options(cmdstanr_write_stan_file_dir = "/Users/torkarr/Downloads/")
 # If you want to run with Stan and use MCMC then you need to install cmdstan in R:
 # > cmdstanr::install_cmdstan(cores=8)
 ```
@@ -574,7 +571,7 @@ BA_ci_u <- format(round(mean(BA_hat) + BA_err, 3), nsmall = 3)
 # mean
 BA_mu <- format(round(mean(BA_hat), 3), nsmall = 3)
 
-print(paste0("BA=", b_BA, ", while 95% CI for simulated mu is: ", BA_mu, "[", BA_ci_l, ",", BA_ci_u, "]"))
+print(paste0("BA=", b_BA, ", while 95% CI for simulated mu (when including C) is: ", BA_mu, "[", BA_ci_l, ",", BA_ci_u, "]"))
 
 ###############################################################################
 ############### and w/o the confounder to see that it all works ###############
@@ -617,10 +614,12 @@ BA_ci_u <- format(round(mean(BA_hat) + BA_err, 3), nsmall = 3)
 # mean
 BA_mu <- format(round(mean(BA_hat), 3), nsmall = 3)
 
-print(paste0("BA=", b_BA, ", while 95% CI for simulated mu is: ", BA_mu, "[", BA_ci_l, ",", BA_ci_u, "]"))
+print(paste0("BA=", b_BA, ", while 95% CI for simulated mu (when not including C) is: ", BA_mu, "[", BA_ci_l, ",", BA_ci_u, "]"))
 ```
-<!-- TODO: Remember to do coeff/(1-coeff) to transform Beta reg coef to OR, before tipping results -->
+
+Above we saw, in the first case, that when we condition on $C$ we also get correct estimates of $BA$, and just as in the early example, when we don't condition on $C$ we get a biased estimate of $BA$. Next, we need to decide on different effect sizes of $BA \rightarrow P$, and then see the size of the confounder, $C$, needed to invalidate that effect.
 
 ## Sensitivity analysis of unknown confounders
+<!-- TODO: Remember to do coeff/(1-coeff) to transform Beta reg coef to OR, before tipping results -->
 
 # References

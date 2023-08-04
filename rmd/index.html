@@ -1511,31 +1511,6 @@ manuscript on confounders. First, we provide a small example that serves
 as a simple case to build intuition. Second, we provide a larger example
 where we conduct a sensitivity analysis of unobserved/unknown
 confounders.</p>
-<p>Let’s start by making sure we have some needed packages.</p>
-<pre class="r"><code># Package names
-packages &lt;- c(&quot;ggplot2&quot;, &quot;brms&quot;, &quot;ggdag&quot;, &quot;cmdstanr&quot;, &quot;tipr&quot;, &quot;broom&quot;, &quot;broom.mixed&quot;, &quot;tidyverse&quot;, &quot;dagitty&quot;, &quot;bayesfam&quot;, &quot;simcausal&quot;, &quot;rethinking&quot;)
-
-# Install packages not yet installed
-installed_packages &lt;- packages %in% rownames(installed.packages())
-if (any(installed_packages == FALSE)) {
-  install.packages(packages[!installed_packages])
-  # bayesfam you need to install via GitHub...
-  # https://github.com/sims1253/bayesfam
-}
-
-# Packages loading
-invisible(lapply(packages, library, character.only = TRUE))</code></pre>
-<pre><code>## Warning in (function (n) : strings not representable in native encoding will be
-## translated to UTF-8</code></pre>
-<pre><code>## Warning in (function (n) : strings not representable in native encoding will be
-## translated to UTF-8</code></pre>
-<pre><code>## Warning in (function (n) : strings not representable in native encoding will be
-## translated to UTF-8</code></pre>
-<pre class="r"><code>theme_set(theme_minimal())
-options(simcausal.verbose = FALSE)
-# options(cmdstanr_write_stan_file_dir = &quot;/Users/torkarr/Downloads/&quot;)
-# If you want to run with Stan and use MCMC then you need to install cmdstan in R:
-# &gt; cmdstanr::install_cmdstan(cores=8)</code></pre>
 </div>
 <div id="a-first-example-to-build-intuition" class="section level1" number="2">
 <h1><span class="header-section-number">2</span> A first example to
