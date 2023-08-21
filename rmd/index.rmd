@@ -29,7 +29,7 @@ if (any(installed_packages == FALSE)) {
 
 # Packages loading
 invisible(lapply(packages, library, character.only = TRUE))
-theme_set(theme_minimal())
+# theme_set(theme_minimal())
 options(simcausal.verbose = FALSE)
 # If you want to run with Stan and use MCMC then you need to install cmdstan in R:
 # > cmdstanr::install_cmdstan(cores=8)
@@ -114,7 +114,25 @@ But if we don't have access to $C$, i.e., it's unmeasured for some reason, or pe
 
 ## Accounting for the unknown^[A more involved example can be found at https://evalf21.classes.andrewheiss.com/example/confounding-sensitivity/#you-can-never-close-every-backdoor-without-an-experiment] 
 
-If we look at the DAG we introduced previously, we see that there are two arrows going from $C$. First, we have $C \rightarrow X$ and then we have $C \rightarrow Y$. These two paths, when we want to look at unobserved effects, are dependent on each other. If we want to assess the effect of $C$ on $X$ in these type of analyses, one often talks about the Standardized Mean Difference (SMD).
+If we look at the DAG we introduced previously, 
+
+```{r, echo=FALSE, out.width="60%", fig.align="center"}
+myDAG <- dagify(
+  X ~ C,
+  Y ~ C,
+  Y ~ X,
+  exposure = "X", # treatment
+  outcome = "Y",
+  coords = list(
+    x = c(X = 1, C = 2, Y = 3),
+    y = c(X = 1, C = 2, Y = 1)
+  )
+)
+
+ggdag(myDAG) + theme_dag()
+```
+
+we see that there are two arrows going from $C$. First, we have $C \rightarrow X$ and then we have $C \rightarrow Y$. These two paths, when we want to look at unobserved effects, are dependent on each other. If we want to assess the effect of $C$ on $X$ in these type of analyses, one often talks about the Standardized Mean Difference (SMD).
 
 The SMD is the confounder's effect on the treated and the non-treated groups in $X$. In math, something like this:
 
@@ -157,12 +175,30 @@ tip_c_avg <- tip_c |>
 ggplot(tip_c, aes(x = c, fill = factor(x))) +
   geom_density(alpha = 0.5) + 
   geom_vline(data = tip_c_avg, aes(xintercept = avg, color = factor(x))) + 
-  theme(legend.position = "none")
+  scale_fill_grey() + theme_classic() +
+  theme(legend.position = "none") +
+  labs(y= "", x = "hours")
 ```
 
 ### Assumptions concerning SMD
 
 As previously explained, there are two arrows going from $C$. In the previous section we focused on the arrow $C \rightarrow Y$, i.e., setting the $\beta_C$ estimate to analyze the size of SMD needed to cancel out our causal effect. Here we will now do the opposite, i.e., given an SMD, how large a $\beta_C$ is needed to cancel out the causal effect of $X \rightarrow Y$.
+
+```{r, echo=FALSE, out.width="60%", fig.align="center"}
+myDAG <- dagify(
+  X ~ C,
+  Y ~ C,
+  Y ~ X,
+  exposure = "X", # treatment
+  outcome = "Y",
+  coords = list(
+    x = c(X = 1, C = 2, Y = 3),
+    y = c(X = 1, C = 2, Y = 1)
+  )
+)
+
+ggdag(myDAG) + theme_dag()
+```
 
 For the sake of completness we'll assume $\mathrm{SMD} = -2.3$ to validate the result in the previous section, i.e., we should end up with $\beta_C \approx 1.5$.
 
