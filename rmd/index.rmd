@@ -304,7 +304,7 @@ The potential answer to the above question would be one of three:
 2. By conditioning on other variable(s) we close the path and then the confounder will not affect the estimate (co).
 3. We truly have a case of omitted variable bias, which means that we need to conduct a sensitivity analysis (ovb).
 
-In the first case (n/a), a confounder would not affect the possibility for us to receive an unbiased causal estimate of the direct effect. In the second case (co), the confounder would affect our possibility to get an unbiased estimate; however, if we condition on $1,\ldots,n$ other variables, the confounder would no longer affect the results and thus fall under the n/a category. Finally, the third case (ovb), is the one we would not like to see. Here a potential confounder would affect our possibility to get an unbiased estimate. This means that we either need to add additional assumptions and argue that this confounder is unlikely to exist, or think harder, identify such a confounder and then measure it.
+In the first case (n/a), a confounder would not affect the possibility for us to receive an unbiased causal estimate of the direct effect. In the second case (co), the confounder would affect our possibility to get an unbiased estimate; however, if we condition on $1,\ldots,n$ other variables, the confounder would no longer affect the results and thus fall under the n/a category. Finally, the third case (ovb), is the one we would not like to see. Here a potential confounder would affect our possibility to get an unbiased estimate. This means that we either need to add additional assumptions and argue that this confounder is unlikely to exist, or think harder, identify such a confounder, and then measure it.
 
 For each edge in the plot above, let's analyze what it would imply if an unknown confounder truly existed between the two nodes connected by the edge:
 
@@ -653,7 +653,9 @@ BA_mu <- format(round(mean(BA_hat), 3), nsmall = 3)
 print(paste0("BA=", b_BA, ", while 95% CI for simulated mu (when not including C) is: ", BA_mu, "[", BA_ci_l, ",", BA_ci_u, "]"))
 ```
 
-Above we saw, in the first case, that when we condition on $C$ we also get correct estimates of $BA$, and just as in the early example, when we don't condition on $C$ we get a biased estimate of $BA$. Next, we need to decide on different effect sizes of $BA \rightarrow P$, and then analyze what size a confounder, $C$, need to be to invalidate those effects. After that we do the same for the confounder affecting $P$ and $H$ to see if we can see any differences.
+Above we saw, in the first case, that when we condition on $C$ we also get correct estimates of $BA$, and just as in the early example, when we don't condition on $C$ we get a biased estimate of $BA$. 
+
+Next, we need to decide on different effect sizes of $BA \rightarrow P$, and then analyze what size a confounder, $C$, need to be to invalidate those effects. After that we do the same for the confounder affecting $P$ and $H$. We can then look at how the two confounders can affect the direct effect of $BA$ on $P$, given assumptions that change on the continuous scale.
 
 ## Sensitivity analysis of unknown confounders
 <!-- TODO: Remember to do coeff/(1-coeff) to transform Beta reg coef to OR, before tipping results -->

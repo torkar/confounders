@@ -1810,7 +1810,7 @@ n/a category. Finally, the third case (ovb), is the one we would not
 like to see. Here a potential confounder would affect our possibility to
 get an unbiased estimate. This means that we either need to add
 additional assumptions and argue that this confounder is unlikely to
-exist, or think harder, identify such a confounder and then measure
+exist, or think harder, identify such a confounder, and then measure
 it.</p>
 <p>For each edge in the plot above, let’s analyze what it would imply if
 an unknown confounder truly existed between the two nodes connected by
@@ -2111,12 +2111,13 @@ print(paste0(&quot;BA=&quot;, b_BA, &quot;, while 95% CI for simulated mu (when 
 ## [1] &quot;BA=0.2, while 95% CI for simulated mu (when not including C) is: 0.426[0.401,0.451]&quot;</code></pre>
 <p>Above we saw, in the first case, that when we condition on <span class="math inline">\(C\)</span> we also get correct estimates of <span class="math inline">\(BA\)</span>, and just as in the early example,
 when we don’t condition on <span class="math inline">\(C\)</span> we get
-a biased estimate of <span class="math inline">\(BA\)</span>. Next, we
-need to decide on different effect sizes of <span class="math inline">\(BA \rightarrow P\)</span>, and then analyze what
+a biased estimate of <span class="math inline">\(BA\)</span>.</p>
+<p>Next, we need to decide on different effect sizes of <span class="math inline">\(BA \rightarrow P\)</span>, and then analyze what
 size a confounder, <span class="math inline">\(C\)</span>, need to be to
 invalidate those effects. After that we do the same for the confounder
-affecting <span class="math inline">\(P\)</span> and <span class="math inline">\(H\)</span> to see if we can see any
-differences.</p>
+affecting <span class="math inline">\(P\)</span> and <span class="math inline">\(H\)</span>. We can then look at how the two
+confounders can affect the direct effect of <span class="math inline">\(BA\)</span> on <span class="math inline">\(P\)</span>, given assumptions that change on the
+continuous scale.</p>
 </div>
 <div id="sensitivity-analysis-of-unknown-confounders" class="section level2" number="3.2">
 <h2><span class="header-section-number">3.2</span> Sensitivity analysis
