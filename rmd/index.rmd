@@ -10,6 +10,13 @@ header-includes:
    - \usepackage{amssymb}
 bibliography: references.bib
 ---
+<!--
+# TODO
+# First, vary N so we see if it's worthwhile first!
+# Second, vary SMD and Beta according to x steps in effect size
+# Finally, connect back to implications for the study that will be planned.
+# TODO: Remember to do coeff/(1-coeff) to transform Beta reg coef to OR, before tipping results
+-->
 
 # Introduction
 
@@ -39,78 +46,74 @@ options(simcausal.verbose = FALSE)
 
 ## The effect of a confounder
 
-A confounder ($C$) is a variable that affects both the treatment ($X$) and the outcome ($Y$), and when a confounder exists we get a spurious (fake) association. In our work we follow the notation of Pearl and claim that confounding is a purely causal concept [@pearl09reason].
+In our work we follow the notation of Pearl and claim that confounding is a purely causal concept [@pearl09reason]. A confounder ($C$) is a variable that causally affects both the treatment ($X$) and the outcome ($Y$), and when a confounder exists we get a spurious (fake) association.
 
-We need to distinguish between two types of studies common in software engineering: experiments (randomized controlled trial, RCT) and observational studies. One reason for why experiments are considered gold standard when conducting studies is that confounding is supposed to be a non-issue due to randomized allocation of treatments (and selection of sample), i.e., very simply put, if we randomly allocate the treatment ($X$), then the causal effect of a confounder ($C$) will not matter. 
+We need to distinguish between two types of studies common in software engineering: experiments (randomized controlled trial, RCT) and observational studies. One reason for why experiments are considered gold standard when conducting studies is that confounding is supposed to be, theoretically, a non-issue due to randomization (i.e., the effect of any confounders will be balanced out). So, very simply put, if we randomly allocate the treatment ($X$), then the causal effect of a confounder ($C$) on $X$ and $Y$ should not matter. With observational studies, on the other hand, the thought was for long that since the researcher did not control the environment a causal approach was impossible. We now know this is not true, and the Nobel Prizes of 2019 and 2021 are further indications of this.
 
-A, perhaps, more straightforward way to think about confounding is to contrast experiments with observational studies as 
-
-> [$\ldots$] any context in which the association between an outcome $Y$ and a predictor of interest $X$ 
-> is not the same as it would be, if we had experimentally determined the values of $X$.
-[@mcelreath20statrethinking]{style="float:right"}
+If we look at it as software engineers, one possible way to visualize this would be to think about the impact of programming languages on code quality. Some people might assume that there's a strong causal effect of language on quality. However, it's not unreasonable to assume that a software engineer's skills could have a direct causal effect on which programming language they use (e.g., skilled people use R) and on the final quality of the artefact produced (e.g., skilled people perform better no matter programming language).
 
 A graphical summary (directed acyclic graph), of what we said above, can be visualized like this:
 
 ```{r, out.width="60%", fig.align="center"}
 myDAG <- dagify(
-  X ~ C,
-  Y ~ C,
-  Y ~ X,
-  exposure = "X", # treatment
-  outcome = "Y",
+  Lang ~ Skills,
+  Qual ~ Skills,
+  Qual ~ Lang,
+  exposure = "Lang", # treatment
+  outcome = "Qual", 
   coords = list(
-    x = c(X = 1, C = 2, Y = 3),
-    y = c(X = 1, C = 2, Y = 1)
+    x = c(Lang = 1, Skills = 2, Qual = 3),
+    y = c(Lang = 1, Skills = 2, Qual = 1)
   )
 )
 
 ggdag(myDAG) + theme_dag()
 ```
 
-In the plot above we see that the confounder $C$ has a causal effect on the treatment $X$ and the outcome $Y$. Also, $X$ affects $Y$, but that is what we're generally speaking interested in estimating. 
+In the plot above we see that the confounder, Skills, has a causal effect on the treatment, Lang, and on the outcome, Qual. Also, Lang has a direct causal effect on Qual, but that is what we're generally speaking interested in estimating (i.e., treatment's effect on the outcome).
 
-Confounders are scary, but no need to panic. If we condition on a confounder (i.e., include it as a predictor in our model) we close the path $\overrightarrow{X \leftarrow C \rightarrow Y}$ and, hence, an unbiased estimate of the direct effect of $X$ on $Y$ can be estimated. However, this means that we must have measured $C$, so we can condition on that variable. As we will see later, omitted variable bias (i.e., we do not have access to some variables) is something we can reason about and provide convincing arguments that it likely does not affect the results of a study. But how dangerous is omitted variable bias?
+Confounders are scary, but no need to panic. If we condition on a confounder (i.e., include it as a predictor in our model) we close the path $\overrightarrow{\mathrm{Lang} \leftarrow \mathrm{Skills} \rightarrow \mathrm{Qual}}$ and, hence, an unbiased estimate of the direct effect of Lang on Qual can be estimated. However, this means that we must have measured Skills, so we can condition on that variable. As we will see later, omitted variable bias (i.e., we do not have access to some variables) is something we can reason about and provide convincing arguments that it likely does not affect the results of a study. But how dangerous is omitted variable bias?
 
 Let's generate some fake data first. That way we *know* the truth.
 
 ```{r, message=FALSE, cache=TRUE}
 N <- 1e5
-c <- rnorm(N) # exogenous 
-x <- 0.5 * c + rnorm(N) # endogenous
-y <- 0.3 * c + 0.4 * x + rnorm(N) # endogenous; set x = 0.4
+skills <- rnorm(N) # exogenous 
+lang <- 0.5 * skills + rnorm(N) # endogenous
+qual <- 0.3 * skills + 0.4 * lang + rnorm(N) # endogenous; set language's effect on qual to 0.4
 
 d <- data.frame(
-  c = c,
-  x = x,
-  y = y
+  skills = skills,
+  lang = lang,
+  qual = qual
 )
 
-# next run two models, one where we don't condition on c, and one where we do condition on c
-withoutC <- brm(
-  y ~ x,
+# next run two models, one where we don't condition on Skills, and one where we do
+withoutSkills <- brm(
+  qual ~ lang,
   data = d,
   refresh = 0
 )
 
-withC <- brm(
-  y ~ x + c,
+withSkills <- brm(
+  qual ~ lang + skills,
   data = d,
   refresh = 0
 )
 ```
 
-Disregarding the estimate for $C$ (we're seldom interested in the causal effect of a confounder, but there are exceptions), the estimates we have of $X$, i.e., $\hat{x}$, is what interests us.
+Disregarding the estimate for our confounder, Skills (we're seldom interested in the causal effect of a confounder, but there are exceptions), the estimates we have of Lang, i.e., $\widehat{\mathrm{Lang}}$, is what interests us.
 
 ```{r}
-fixef(withC)[2,1]
-fixef(withoutC)[2,1]
+fixef(withSkills)[2,1]
+fixef(withoutSkills)[2,1]
 ```
 
-Conditioning on $C$ allows us to get the correct estimate for $X$ ($\hat{x}_c \approx$ `r round(fixef(withC)[2,1], 2)`) since we close the backdoor. If we don't condition on $C$ we get a biased (in this case positive) estimate, i.e., $\hat{x}_{\neg c} \approx$ `r round(fixef(withoutC)[2,1], 2)`, because of the confounder's effect on both $X$ and $Y$.
+Conditioning on Skills allows us to get the correct estimate for Lang ($\widehat{\mathrm{Lang}}_s \approx$ `r round(fixef(withSkills)[2,1], 2)`) since we close the backdoor. If we don't condition on Skills we get a biased (in this case positive) estimate, i.e., $\widehat{\mathrm{Lang}}_{\neg s} \approx$ `r round(fixef(withoutSkills)[2,1], 2)`, because of Skills's effect on both Lang and Qual.
 
-There are a few lessons learnt from the above example. First, confounders can have an effect on the estimate. Second, the bias is positive in this case, but can also be negative (change the confounder's sign on $X$, i.e., from $0.5$ to $-0.5$ instead and you'll see). Third, if we want to have an unbiased estimate we need to condition on the confounder ($C$ in this case), to close the backdoor that goes from $\overrightarrow{X \leftarrow C \rightarrow Y}$.
+There are a few lessons to learn from the above simple example. First, confounders can have an effect on the estimate. Second, the bias is positive in this case, but can also be negative (change Skills's sign on Lang and you'll see). Third, if we want to have an unbiased estimate we need to condition on the confounder (Skills in this case), to close the backdoor that goes from $\overrightarrow{\mathrm{Lang} \leftarrow \mathrm{Skills} \rightarrow \mathrm{Qual}}$.
 
-But if we don't have access to $C$, i.e., it's unmeasured for some reason, or perhaps unknown, then we are facing omitted variable bias. However, all is not lost. *We can still argue if it's likely that a confounder would nullify the causal effect of $X$ on $Y$*.
+If we conduct an obervational study, and if we don't have access to Skills, i.e., it's unmeasured for some reason, or perhaps unknown, then we are now facing omitted variable bias. However, all is not lost. *We can still argue if it's likely that Skills would nullify the causal effect of Lang on Qual*.
 
 ## Accounting for the unknown^[A more involved example can be found at https://evalf21.classes.andrewheiss.com/example/confounding-sensitivity/#you-can-never-close-every-backdoor-without-an-experiment] 
 
@@ -118,51 +121,53 @@ If we look at the DAG we introduced previously,
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center"}
 myDAG <- dagify(
-  X ~ C,
-  Y ~ C,
-  Y ~ X,
-  exposure = "X", # treatment
-  outcome = "Y",
+  Lang ~ Skills,
+  Qual ~ Skills,
+  Qual ~ Lang,
+  exposure = "Lang", # treatment
+  outcome = "Qual", 
   coords = list(
-    x = c(X = 1, C = 2, Y = 3),
-    y = c(X = 1, C = 2, Y = 1)
+    x = c(Lang = 1, Skills = 2, Qual = 3),
+    y = c(Lang = 1, Skills = 2, Qual = 1)
   )
 )
 
 ggdag(myDAG) + theme_dag()
 ```
 
-we see that there are two arrows going from $C$. First, we have $C \rightarrow X$ and then we have $C \rightarrow Y$. These two paths, when we want to look at unobserved effects, are dependent on each other. If we want to assess the effect of $C$ on $X$ in these type of analyses, one often talks about the Standardized Mean Difference (SMD).
+we see that there are two arrows going from Skills. First, we have $\mathrm{Skills} \rightarrow \mathrm{Lang}$ and then we have $\mathrm{Skills} \rightarrow \mathrm{Qual}$. These two edges are dependent on each other. If we want to assess the effect of Skills on Lang, one often talks about the Scaled Mean Difference (SMD).
 
-The SMD is the confounder's effect on the treated and the non-treated groups in $X$. In math, something like this:
+The SMD is the confounder's effect on the different groups in Lang (e.g., Java and Python). In math, it's something like this:
 
-$$\mathrm{SMD} = \frac{\bar{C}_t - \bar{C}_{\neg t}}{\sigma_Z}$$
+$$\mathrm{SMD} = \frac{\overline{\mathrm{Skills}}_{\mathrm{Java}} - \overline{\mathrm{Skills}}_{\mathrm{Python}}}{\sigma_Z}$$
 
-The difference between the treated $\bar{C}_t$ and the untreated $\bar{C}_{\neg t}$ can then, by using SMD, be represented as a difference in $\sigma$. For example, a $3\sigma$, $1\sigma$, or $0.1\sigma$ difference between the treated and untreated groups. 
+The difference in mean between Java and Python can then, by using SMD, be represented as a difference in $\sigma$. For example, a $3\sigma$, $1\sigma$, or $0.1\sigma$ difference between two categories.
 
-If we next look at the other arrow ($C \rightarrow Y$), we don't need to think about the SMD since $C$ is affecting the outcome $Y$ and not the treatment $X$. Here we can simply estimate the effect as a regular $\beta$ estimate that we're used to, i.e., in our case the $\beta_C$ estimate of our confounder $C$. As is common, one could for example say that $\beta_C = 3$ would mean that a 1-unit change in $C$ would imply a 3-unit change in $Y$.
+If we next look at the other arrow ($\mathrm{Skills} \rightarrow \mathrm{Qual}$), we don't need to think about the SMD since Skills is affecting the outcome Qual and not the treatment Lang. Here we can simply estimate the effect as a regular $\beta$ estimate that we're used to, i.e., in our case the $\beta_{\mathrm{Skills}}$ estimate of our confounder Skills. As is common, one could for example say that $\beta_{\mathrm{Skills}} = 3$ meaning that a 1-unit change in Skills would imply a 3-unit change in Qual.
 
-With these two concepts, the SMD and the $\beta_C$ estimate, we can now add assumptions to our analysis and argue how likely it is that they would hold. According to @linPK98sens we now have three options to choose between:
+With these two concepts, the SMD and the $\beta_{\mathrm{Skills}}$ estimate, we can now add assumptions to our analysis and argue how likely it is that they would hold. According to @linPK98sens we now have three options to choose between:
 
-* Specify $\beta_C$ and estimate how large SMD needs to be to cancel out the direct effect of $X$ on $Y$.
-* Specify SMD and estimate how large a $\beta_C$ needs to be to cancel out the direct effect of $X$ on $Y$.
-* Finally, by specifying both SMD and $\beta_C$ we can investigate the number of confounders, $n_c$, needed to cancel out the direct effect of $X$ on $Y$.
+* Make assumptions concerning $\beta_{\mathrm{Skills}}$, and estimate how large SMD needs to be to cancel out the direct effect of Lang on Qual.
+* Make assumptions concerning SMD, and estimate how large $\beta_{\mathrm{Skills}}$ needs to be to cancel out the direct effect of Lang on Qual.
+* Finally, by specifying both SMD and $\beta_{\mathrm{Skills}}$ we can investigate the number and size of confounders, $n_c$, needed to cancel out the direct effect of Lang on Qual.
 
-Next, we will focus on the first two analyses, since they are more common.
+We will focus on the first two analyses, since they are more common.
 
-### Assumptions concerning $\beta_C$
-If we continue using the analysis we did initially we can collect the true effect that was estimated (which we know was $0.4$) and assume $\beta_C = 1.5$, i.e., a 1-unit change in $C$ would imply a 1.5-unit change in $Y$:
+### Assumptions concerning $\beta_{\mathrm{Skills}}$
+If we continue with the example, we can collect the true effect's lower confidence interval ($\approx 0.4$) and assume $\beta_{\mathrm{Skills}} = 1.5$, i.e., a 1-unit change in Skills would imply a 1.5-unit change in Qual:
 
 ```{r}
-tidy(withC, conf.int=TRUE) |>
-        filter(term == "x") |>
-        pull(estimate) |>
-        tip(confounder_outcome_effect = 1.5)
+tidy(withSkills, conf.int = TRUE) %>%
+  filter(term == "lang") %>%
+  pull(conf.low) %>%
+  tip(confounder_outcome_effect = 1.5)
 ```
 
-then a hypothetical unmeasured continuous confounder with $\beta_C = 1.5$ and $\mathrm{SMD} \approx -2.3$, would cancel out the effect ($\beta_X = 0.4$) of $X$ on $Y$. Hence, given our assumptions, a 1-unit change in an unmeasured $C$ leading to a 1.5-unit change in $Y$ and, *et voilà*, you would not have a Nature paper. Making it more concrete might help.
+then a hypothetical unmeasured continuous confounder with $\beta_{\mathrm{Skills}} = 1.5$ and $\mathrm{SMD} \approx -2.3$, would cancel out the effect (in our case $0.4$) of Lang on Qual. Hence, given our assumptions, a 1-unit change in an unmeasured confounder (Skills) leading to a 1.5-unit change in Qual and, *et voilà*, you would not have a Nature paper. Visualizing what this means might help.
 
-Say that the confounder $C$ is number of hours spent on implementing a feature (unmeasured confounder) with $\mu = 45$ and $\sigma = 1.5$. Our standardized difference of $-2.3$ can be transformed to hours by multiplying with our $\sigma = 1.5$, i.e., $1.5 \cdot -2.3 \approx -3.5$. This implies that between treatment and non-treatment we would need to see a difference of approximately $3.5$ hours when implementing a feature. Is this unlikely? Perhaps; context matters. However, as an empirical researcher you might not want to bet your life on it if you look at the plot below; this is how large a difference there would be between the two populations. More importantly, you should present these results to your readers and argue for why it is unlikely that a counfounder exists, or go measure it carefully.
+Assume that the Skills is some latent variable we have to measure such a construct. Assume we have som quality measure we're interested in distributed as $\mathrm{Normal}(45,1.5)$. Our scaled difference that we received above (i.e., $-2.3$) can be transformed to a quality score by multiplying with $\sigma = 1.5$ (our assumed dispersion), i.e., $1.5 \cdot -2.3 \approx -3.45$. This implies that between two categories (Java and Python) we would need to see a difference of approximately $3.45$ in a quality score when implementing a feature. Is this unlikely? Perhaps; context matters. 
+
+However, as an empirical researcher you might not want to bet your life on it if you look at the plot below; this is how large a difference there would be between the two languages. More importantly, you should present these results to your readers and argue for why it is either a) unlikely that a counfounder exists, or b) go measure the latent variable Skills carefully.
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center"}
 tip_c <- tibble(x = sample(0:1, N, replace = TRUE)) |> 
@@ -177,487 +182,379 @@ ggplot(tip_c, aes(x = c, fill = factor(x))) +
   geom_vline(data = tip_c_avg, aes(xintercept = avg, color = factor(x))) + 
   scale_fill_grey() + theme_classic() +
   theme(legend.position = "none") +
-  labs(y= "", x = "hours")
+  labs(y= "", x = "Quality score")
 ```
 
 ### Assumptions concerning SMD
 
-As previously explained, there are two arrows going from $C$. In the previous section we focused on the arrow $C \rightarrow Y$, i.e., setting the $\beta_C$ estimate to analyze the size of SMD needed to cancel out our causal effect. Here we will now do the opposite, i.e., given an SMD, how large a $\beta_C$ is needed to cancel out the causal effect of $X \rightarrow Y$.
+As previously explained, there are two arrows going from Skills. In the previous section we focused on the arrow $\mathrm{Skills} \rightarrow \mathrm{Qual}$, i.e., setting the $\beta_{\mathrm{Skills}}$ estimate to analyze the size of SMD needed to cancel out the direct causal effect of Lang on Qual. Here we will now do the opposite, i.e., given an SMD, how large a $\beta_{\mathrm{Skills}}$ is needed to cancel out the causal effect of $Lang \rightarrow Qual$.
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center"}
 myDAG <- dagify(
-  X ~ C,
-  Y ~ C,
-  Y ~ X,
-  exposure = "X", # treatment
-  outcome = "Y",
+  Lang ~ Skills,
+  Qual ~ Skills,
+  Qual ~ Lang,
+  exposure = "Lang", # treatment
+  outcome = "Qual", 
   coords = list(
-    x = c(X = 1, C = 2, Y = 3),
-    y = c(X = 1, C = 2, Y = 1)
+    x = c(Lang = 1, Skills = 2, Qual = 3),
+    y = c(Lang = 1, Skills = 2, Qual = 1)
   )
 )
 
 ggdag(myDAG) + theme_dag()
 ```
 
-For the sake of completness we'll assume $\mathrm{SMD} = -2.3$ to validate the result in the previous section, i.e., we should end up with $\beta_C \approx 1.5$.
+For the sake of completness we'll assume $\mathrm{SMD} = -2.3$ to validate the result in the previous section, i.e., we should end up with $\beta_{\mathrm{Skills}} \approx 1.5$.
 
 ```{r}
-tidy(withC, conf.int=TRUE) |>
-        filter(term == "x") |>
-        pull(estimate) |>
+tidy(withSkills, conf.int=TRUE) |>
+        filter(term == "lang") |>
+        pull(conf.low) |>
         tip(exposure_confounder_effect = -2.3)
 ```
 
-Above we see that $\beta_C \approx 1.50$ (i.e., the confounder_outome_effect), thus we have an indication that this works both ways. Given that we have introduced two distinct concepts used to estimate unobserved/unknown confounders, we can now turn out attention to a more involved example.
+Above we see that $\beta_{\mathrm{Skills}} \approx 1.50$ (i.e., the confounder_outome_effect), thus we have an indication that this works both ways. Given that we have introduced two distinct concepts used to estimate unobserved/unknown confounders, we can now turn our attention to a more involved example.
 
-# A second, more realistic, example
+# A second, more involved, example
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center"}
 var_labs <- c(
-  `P` = "P",
-  `BA` = "BA",
-  `H` = "H",
-  `PL` = "PL",
-  `L` = "L",
-  `O` = "O",
-  `PT` = "PT",
-  `S` = "S",
-  `TS` = "TS"
+  `BA` = "BA", # business area
+  `H` = "H", # hardware-focussed or not
+  `PL` = "PL", # programming language
+  `L` = "L", # location
+  `O` = "O", # organisation
+  `PT` = "PT", # project type
+  `S` = "S", # size
+  `TS` = "TS", # team size
+  `ST` = "ST", # sw type
+  `E` = "E" # effort
 )
 
 col_labs <- c(
-  `P` = "black", `BA` = "black", `H` = "grey60", `PL` = "grey60",
-  `L` = "grey60", `O` = "grey60", `PT` = "grey60", `S` = "grey60",
-  `TS` = "grey60"
+  `BA` = "#56B4E9", `H` = "#56B4E9", `PL` = "#56B4E9",
+  `L` = "#56B4E9", `O` = "#56B4E9", `PT` = "#56B4E9", `S` = "#56B4E9",
+  `TS` = "#000000", `E` = "#000000", `ST` = "#56B4E9"
 )
 
-udag <- ggdag::dagify(
-  H ~ BA,
-  P ~ BA,
-  P ~ H,
-  PL ~ H,
-  P ~ L,
-  BA ~ O,
-  L ~ O,
-  P ~ O,
-  P ~ PL,
-  P ~ PT,
-  P ~ S,
-  TS ~ S,
-  P ~ TS,
-  exposure = "BA",
-  outcome = "P"
+udag <- dagify(
+E ~ BA,
+H ~ BA,
+PL ~ BA,
+S ~ BA,
+E ~ H,
+PL ~ H,
+E ~ L,
+E ~ O,
+L ~ O,
+PL ~ O,
+TS ~ O,
+E ~ PL,
+E ~ PT,
+E ~ S,
+TS ~ S,
+E ~ ST,
+S ~ ST,
+E ~ TS,
+exposure = "TS",
+outcome = "E",
+coords = list(x = c(BA = 1, E = 6, H = 2, PL = 2, S = 4, PT = 4, L = 6, O = 7, TS = 7, ST = 3),
+              y = c(BA = 4, E = 4, H = 3, PL = 1, S = 9, PT = 7, L = 2, O = 1, TS = 9, ST = 6))
 )
 
-df <- udag %>%
-  node_canonical(seed = 7) %>%
+df <- udag %>% 
+  node_canonical() %>%
   mutate(var_labs = var_labs[name], cols = col_labs[name])
 
 ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
   geom_dag_point(mapping = aes(colour = name), show.legend = FALSE) +
-  geom_dag_edges_link() +
+  geom_dag_edges() +
   scale_colour_manual(values = df$data$cols) +
   geom_dag_text(mapping = aes(label = var_labs), parse = TRUE) + 
   theme_dag()
 ```
 
-In [@feldtSFT23sysrev], the authors extracted causal links from several primary studies and assembled disparate evidence into a Unified Directed Acyclic Graph (UDAG). The purpose was to, in the future, analyze the direct effect of Business Area ($BA$) on Productivity, ($P$), i.e., Business Area can be seen as a "treatment" and Productivity as the outcome. 
+@feldtSFT23sysrev extracted causal links from several primary studies and attempted to assemble disparate evidence into a Unified Directed Acyclic Graph (UDAG) as above. In the UDAG above the letters are, from left to right, short for: $BA$ Business Area, $PL$ Programming Language, $H$ Hardware, $ST$ Software Type, $PT$ Project Type, $S$ Size of software, $L$ Location, $E$ Effort, $O$ Organization type, and $TS$ Team Size. 
 
-If one would want to design the next observational study investigating this particular outcome and treatment, the idea would be that one could use the UDAG to know what variables to collect; after all, some studies contained some variables, but no study contained all variables in the UDAG. However, the UDAG, as we will see, can also be used for sensitivity analysis of unknown confunders. That would allow a future study to either be more sure of not facing omitted variable bias from start, i.e., the UDAG is likely to be correct, or to make sure to collect variables that are currently unobserved, i.e., the UDAG needs to be complemented with new variables.
+We'd like to know the direct effect of $TS$ on $E$ (both in <span style="background-color: black;color: white;">black</span>), i.e., Team Size's direct effect on Effort. One would think it's a straightforward thing to measure, but not taking into account confounders would lead to biased estimates, i.e., spurious associations.
 
-The above UDAG is clearly a more involved example and contains several of the elemental constructs one can find in a DAG. Organization ($O$) is a confounder since it points to the treatment and the outcome. Hardware ($H$) is part of a pipe since $BA \rightarrow H \rightarrow P$. The lower part also contains several ancestors of the outcome. Additionally, we also see that there are no colliders (e.g., $X \rightarrow C \leftarrow Y$) in the UDAG. So, this seems to be a simple task. Let's see what we should condition on by calculating the adjustment set for the UDAG :
+The UDAG, as we will see, will also help us understand if a sensitivity analysis of unknown confounders is needed. In short, it would allow a future study to either be more sure of not facing omitted variable bias from start, i.e., the UDAG is likely correct, or force us to collect variables that are currently unmeasured, i.e., the UDAG needs to be complemented with new variables.
+
+The above UDAG is clearly a more involved example and contains all elemental constructs one can find in a DAG, e.g., Organization ($O$) is a confounder, Hardware ($H$) is part of a pipe since $BA \rightarrow H \rightarrow E$, and the lower part also contains an ancestors of the outcome, e.g., $L$. Additionally, we also see that there are colliders (e.g., $PL$) in the UDAG. Let's see what we should condition on by calculating the adjustment set for the UDAG:
 
 ```{r}
 adjustmentSets(udag, effect = "direct")
 ```
 
-It seems our adjustment set is $\mathcal{A} = \{ H, O \}$. By conditioning on $H$ and $O$ (i.e., adjusting for $H$ and $O$) we will be able to estimate the direct effect of $BA$ on $P$. But what if there are unknown confounders? It's not unlikely given that the studies that contributed to the UDAG are all observational. 
+The adjustment set is $\mathcal{A} = \{ O, S \}$. By conditioning on $O$ and $S$ (i.e., adjusting for $O$ and $S$) we will be able to estimate the direct effect of $TS$ on $E$. But what if there are unknown confounders? It's not unlikely given that the studies that contributed to the UDAG are all observational. 
 
-Let's do this systematically and overlay numbers on the plot to make sure that we don't miss anything. First, we focus on the nine edges in the upper part of the UDAG since they are all connected to $BA$ directly or indirectly without needing to go through $P$.
+Let's do this systematically and overlay numbers on the plot, from bottom to top, to make sure that we don't miss anything.
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center"}
-ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
-  geom_dag_point(mapping = aes(colour = name), show.legend = FALSE) +
-  geom_dag_edges_link() +
-  scale_colour_manual(values = df$data$cols) +
-  geom_dag_text(mapping = aes(label = var_labs), parse = TRUE) +
-  annotate("text", x = 0, y = 1.17, label = "1") +
-  annotate("text", x = 0.9, y = 1.2, label = "2") +
-  annotate("text", x = 1.75, y = 0.7, label = "3") +
-  annotate("text", x = 1.3, y = -0.1, label = "4") +
-  annotate("text", x = -0.4, y = -0.15, label = "5") +
-  annotate("text", x = 0.87, y = 0.4, label = "9") +
-  annotate("text", x = 0.4, y = 0.4, label = "8") +
-  annotate("text", x = -0.8, y = 0.6, label = "6") +
-  annotate("text", x = -0.13, y = 0.3, label = "7") +
-  theme_dag()
-```
-
-If we look at the plot above, and take #1 as an example, the question we're asking is: 
-
-> If there would be a confounder $C$ between $H$ and $BA$, i.e. $H \leftarrow C \rightarrow BA$, how would that affect our possibility to estimate the direct effect of $BA$ on $P$?
-
-The potential answer to the above question would be one of three: 
-
-1. It would not affect the estimate (n/a).
-2. By conditioning on other variable(s) we close the path and then the confounder will not affect the estimate (co).
-3. We truly have a case of omitted variable bias, which means that we need to conduct a sensitivity analysis (ovb).
-
-In the first case (n/a), a confounder would not affect the possibility for us to receive an unbiased causal estimate of the direct effect. In the second case (co), the confounder would affect our possibility to get an unbiased estimate; however, if we condition on $1,\ldots,n$ other variables, the confounder would no longer affect the results and thus fall under the n/a category. Finally, the third case (ovb), is the one we would not like to see. Here a potential confounder would affect our possibility to get an unbiased estimate. This means that we either need to add additional assumptions and argue that this confounder is unlikely to exist, or think harder, identify such a confounder, and then measure it.
-
-For each edge in the plot above, let's analyze what it would imply if an unknown confounder truly existed between the two nodes connected by the edge:
-
-1. n/a
-2. n/a
-3. co $L$
-4. n/a
-5. n/a
-6. co $PL$
-7. ovb
-8. ovb
-9. n/a
-
-How did we come to the results above? Well, analyzing the UDAG according to Pearl's causal calculus [@pearl09reason] leads to the above results and with experience one receives intuition when analyzing DAGs. However, one can also use software to get some help, e.g., the [dagitty](https://dagitty.net) package in R. If you are so inclined you can verify [online](https://dagitty.net/dags.html?id=P8mw_j) that our analysis above is correct.
-
-To summarize, we can make life easier by also conditioning on $PL$ and $L$, i.e., $\mathcal{A} = \{ H, O, PL, L \}$. However, we still have a challenge dealing with #7 and #8. If an unknown confounder exists between the two nodes on each of those two edges, then we need to fall back on our sensitivity analysis of unknown confounders. However, before we do that, let's first look at the bottom half.
-
-First, if there's a confounder $PT \leftarrow C \rightarrow BA$ or $PT \leftarrow C \rightarrow H$ then we are in trouble. But if we condition on $PT$ we close these paths and even gain higher accuracy in our causal estimate, since $PT$ is an ancestor of the outcome $P$. Hence, we should add $PT$ to our adjustment set. Next, imagine there's a confounder $S \leftarrow C \rightarrow BA$ or $S \leftarrow C \rightarrow H$. That would make it impossible for us to estimate the causal effect correctly. However, as in the previous case, conditioning on $S$ will close that path. Hence, $S$ should be added to our adjustment set. Finally, $TS$ should also be added to our adjustment set, for the same reasons as in the previous two cases.
-
-Ultimately, this implies that if we want to estimate the direct causal effect of $BA$ on $P$, we need to condition on 
-
-$\mathcal{A} = \{ H, O, PL, L, PT, S, TS \}$
-
-to account for possible unknown confounders. However, remember, there's still a challenge in dealing with #7 and #8, i.e., in these two cases we need to analyze how large a confounder needs to be to nullify the direct causal effect of $BA$ on $P$. Let's do just that.
-
-## Model design and execution
-
-In addition to the outcome $P$ and the treatment $BA$, there are several variables we've decided to control (adjust) for. However, if conducting sensitivity analysis of unknown confounders, there are only two edges we need to care about (#7 and #8, which we concluded in the previous section).
-
-Let's look at these two cases of potential omitted variable bias, and some implications of what an unknown confounder would be doing in this case.
-
-```{r, echo=FALSE, fig.align="center"}
-var_labs <- c(
-  `P` = "P",
-  `BA` = "BA",
-  `H` = "H",
-  `PL` = "PL",
-  `L` = "L",
-  `O` = "O",
-  `PT` = "PT",
-  `S` = "S",
-  `TS` = "TS"
-)
-
 col_labs <- c(
-  `P` = "black", `BA` = "black", `H` = "black", `PL` = "grey60",
-  `L` = "grey60", `O` = "grey60", `PT` = "grey60", `S` = "grey60",
-  `TS` = "grey60"
+  `BA` = "#56B4E9", `H` = "#56B4E9", `PL` = "#56B4E9",
+  `L` = "#56B4E9", `O` = "#D55E00", `PT` = "#56B4E9", `S` = "#D55E00",
+  `TS` = "#000000", `E` = "#000000", `ST` = "#56B4E9"
+  # orange #D55E00
 )
 
-udag <- ggdag::dagify(
-  H ~ BA,
-  P ~ BA,
-  P ~ H,
-  PL ~ H,
-  P ~ L,
-  BA ~ O,
-  L ~ O,
-  P ~ O,
-  P ~ PL,
-  P ~ PT,
-  P ~ S,
-  TS ~ S,
-  P ~ TS,
-  exposure = "BA",
-  outcome = "P"
-)
-
-df <- udag %>%
-  node_canonical(seed = 7) %>%
+df <- udag %>% 
+  node_canonical() %>%
   mutate(var_labs = var_labs[name], cols = col_labs[name])
 
 ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
   geom_dag_point(mapping = aes(colour = name), show.legend = FALSE) +
   geom_dag_edges_link() +
   scale_colour_manual(values = df$data$cols) +
-  geom_dag_text(mapping = aes(label = var_labs), parse = TRUE) + 
-  annotate("text", x = 0.4, y = 0.4, label = "8") +
-  annotate("text", x = -0.13, y = 0.3, label = "7") +
+  geom_dag_text(mapping = aes(label = var_labs), parse = TRUE) +
+  annotate("text", x = 4.5, y = 1.2, label = "1") +
+  annotate("text", x = 1.4, y = 2.2, label = "2") +
+  annotate("text", x = 2.1, y = 2, label = "3") +
+  annotate("text", x = 4.1, y = 2.3, label = "4") +
+  annotate("text", x = 6.45, y = 1.35, label = "5") +
+  annotate("text", x = 5.9, y = 2.95, label = "6") +
+  annotate("text", x = 6.4, y = 2.4, label = "7") +
+  annotate("text", x = 1.6, y = 3.6, label = "8") +
+  annotate("text", x = 3.8, y = 3.6, label = "9") +
+  annotate("text", x = 3.3, y = 4.15, label = "10") +
+  annotate("text", x = 6.9, y = 5, label = "11") +
+  annotate("text", x = 2.35, y = 6.6, label = "12") +
+  annotate("text", x = 3.5, y = 7.1, label = "13") +
+  annotate("text", x = 4.5, y = 5.2, label = "14") +
+  annotate("text", x = 4.9, y = 5.9, label = "15") +
+  annotate("text", x = 5.15, y = 6.5, label = "16") +
+  annotate("text", x = 5.65, y = 8.8, label = "17") +
+  annotate("text", x = 6.6, y = 6.4, label = "18") +
   theme_dag()
 ```
 
-First, what we are talking about are two confounders: $BA \leftarrow C \rightarrow P$ and $H \leftarrow C \rightarrow P$. If there is a confounder there, then even if those two confounders would affect any other adjusted variable there'd be no need to worry&#8212;it won't affect our possibility to receive an unbiased estimate of $BA$'s effect on $P$ by the laws of causal calculus. But, let's break this down into the three possible ways a confounder could affect the estimation, if found between the aforementioned nodes.
+In the plot above we have the treatment and outcome in black, as before, but we have now also added the color <span style="background-color: #D55E00;color: white;">orange</span> to signify that these are variables we condition on.
+
+If we look at the plot above, and take Edge #1 as an example, the question we're asking is: 
+
+> If there would be a confounder $C$ between $PL$ and $O$, i.e. $PL \leftarrow C \rightarrow O$, (in addition to the existing edge $PL \leftarrow O$), how would that affect our possibility to estimate the direct effect of $TS$ on $E$, given our adjustment set $\mathcal{A}$?
+
+The potential answer to the above question would be one of three cases: 
+
+1. It would not affect the estimate (**n/a**).
+2. By conditioning on other variable(s) we close the path and then the confounder will not affect the estimate (**co**).
+3. We truly have a case of omitted variable bias, which means that we need to conduct a sensitivity analysis (**ovb**).
+
+In Case 1 (**n/a**), a confounder would not affect the possibility for us to receive an unbiased causal estimate of the direct effect. In Case 2 (**co**), the confounder would affect our possibility to get an unbiased estimate; however, if we condition on $1,\ldots,n$ other variables, the confounder would no longer affect the results and, thus, fall under the **n/a** category. Finally, Case 3 (**ovb**), is the one we are terrified about. Here a potential confounder would affect our possibility to get an unbiased estimate. This means that we either need to add additional assumptions and argue that this confounder is unlikely to exist, or think harder, identify such a confounder, and then measure it carefully.
+
+If we next analyze what it would imply if an unknown confounder truly existed at each of the above edges, while we condition on $S$ and $O$, we quickly see that there are only two edges that we need to be careful about: Edges #17 and #18.
+
+Edge #17 is a bit tricky. If there would be a confounder between $S$ and $TS$, i.e., $S \leftarrow C \rightarrow TS$ (in addition to Edge #17), it would bias the estimate. However, in this particular case we don't have to see it as a case of omitted variable bias (Case #3 above), since if we condition on $BA$ *and* $ST$, we would close those paths and still be able to get an unbiased estimate of the direct effect of $TS$ on $E$. In short, this is case of **ovb** as explained above.
+
+Edge #18, however, is more serious. A confounder between $TS$ and $E$, i.e., $TS \leftarrow C \rightarrow E$ (in addition to Edge #19), would bias our estimate. This is a clear case of omitted variable bias (i.e., **ovb**), since we can't solve it by conditioning on any other variables. In short, if such an unknown/unmeasured confounder exists, we'd be toast.
+
+Below is an updated UDAG where we mark all variables that we condition on in orange, the confounder is in <span style="background-color: #F0E442;color: white;">yellow</span>, while the outcome and treatment are in black. Other variables that we have no use for are now removed from the plot and futher analysis. 
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center"}
-edge7 <- dagify(
-  P ~ BA, 
-  H ~ BA,
-  P ~ C,
-  H ~ C,
-  P ~ H,
-  coords = list(
-    x = c(BA = 1, P = 1, H = 0.7, C = 0.95),
-    y = c(BA = 2, P = 1, H = 1.75, C = 1.5)
-  )
+var_labs <- c(
+  `BA` = "BA", # business area
+  `O` = "O", # organisation
+  `S` = "S", # size
+  `TS` = "TS", # team size
+  `ST` = "ST", # sw type
+  `E` = "E", # effort
+  `C` = "C" # Confounder
 )
-ggdag(edge7) + theme_dag()
+
+col_labs <- c(
+  `BA` = "#D55E00", `O` = "#D55E00", `S` = "#D55E00",
+  `TS` = "#000000", `E` = "#000000", `ST` = "#D55E00", `C` = "#F0E442"
+)
+
+udag <- dagify(
+E ~ BA,
+TS ~ C,
+E ~ C,
+S ~ BA,
+E ~ O,
+TS ~ O,
+E ~ S,
+TS ~ S,
+E ~ ST,
+S ~ ST,
+E ~ TS,
+exposure = "TS",
+outcome = "E",
+coords = list(x = c(BA = 1, C = 6, E = 6, S = 4, O = 7, TS = 7, ST = 3),
+              y = c(BA = 4, C = 7, E = 4, S = 9, O = 1, TS = 9, ST = 6))
+)
+
+df <- udag %>% 
+  node_canonical() %>%
+  mutate(var_labs = var_labs[name], cols = col_labs[name])
+
+ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
+  geom_dag_point(mapping = aes(colour = name), show.legend = FALSE) +
+  geom_dag_edges_link() +
+  scale_colour_manual(values = df$data$cols) +
+  geom_dag_text(mapping = aes(label = var_labs), parse = TRUE) +
+  theme_dag()
 ```
 
-What we see above (#7), is a confounder between $H$ and $P$. Such a confounder would seriously affect our possibility to receive an unbiased estimate of the direct effect of $BA$ on $P$, since the confounder would affect the outcome and $H$, which we chose to condition on.
+Evidently, we see that we condition on more variables than $S$ and $O$ (which was declared as the *minimal* adjustment set). We also included $BA$ and $ST$ because we wanted to close backdoor paths to avoid any unmeasured or unknown confounders.
 
-```{r, echo=FALSE, out.width="60%", fig.align="center"}
-edge8 <- dagify(
-  P ~ BA, 
-  H ~ BA,
-  BA ~ C,
-  P ~ C,
-  P ~ H,
-  coords = list(
-    x = c(BA = 1, P = 1, H = 0.7, C = 0.95),
-    y = c(BA = 2, P = 1, H = 1.75, C = 1.5)
-  )
-)
-ggdag(edge8) + theme_dag()
+How did we come to the results above? Well, analyzing the UDAG according to causal calculus [@pearl09reason] leads to the above results and with experience one receives intuition when analyzing DAGs. However, one can (should) also use software to get some assistance, e.g., the [dagitty](https://dagitty.net) package in R. If you are so inclined you can verify [online](http://dagitty.net/mLQZroN) that our analysis above is correct.
+
+To summarize, we have a challenge dealing with a confounder $C$, which affects both our treatment $TS$ and the outcome $E$, i.e., $TS \leftarrow C \rightarrow E$. Perhaps a researcher could swear that such a confounder cannot physically exist for the studied phenomena, but if one is not 100% sure, then we should do better and fall back on sensitivity analysis of unknown confounders.
+
+## Sensitivity analysis of unknown confounders
+
+In addition to the outcome $E$ and the treatment $TS$, there are several variables we've decided to control (adjust) for, i.e., $\mathcal{A} = \{ S, O, ST, BA \}$ (the latter two so that any confounder between $S$ and $TS$ is cancelled out). 
+
+The case we have in front of us is the classical case of a confounder affecting both the treatment and the outcome.
+
+```{r, echo=FALSE, fig.align="center"}
+edgeBasic <- dagify(
+      E ~ TS, 
+      E ~ C,
+      TS ~ C,
+      coords = list(
+        x = c(TS = 1, E = 1, C = 0.9),
+        y = c(TS = 2, E = 1, C = 1.5)
+      )
+    )
+    ggdag(edgeBasic) + theme_dag()
 ```
 
-Above (#8) is a confounder between $BA$ and $P$. This is exactly as our first example we presented earlier. Since the confounder affects the treatment and outcome we are in trouble and it would not be possible to get an unbiased estimate.
+First, we need to decide on any assumptions concerning the direct effect of $TS$ on $E$. Next, we need to ascertain the effect a confounder must have on $TS$ and $E$ to cancel out that effect (i.e., to make it cross zero according to some credible interval).
 
-```{r, echo=FALSE, out.width="60%", fig.align="center"}
-edge7and8 <- dagify(
-  P ~ BA, 
-  H ~ BA,
-  BA ~ C,
-  P ~ C,
-  H ~ C,
-  P ~ H,
-  coords = list(
-    x = c(BA = 1, P = 1, H = 0.7, C = 0.95),
-    y = c(BA = 2, P = 1, H = 1.75, C = 1.5)
-  )
-)
-ggdag(edge7and8) + theme_dag()
-```
+In summary the characteristics of the three variables of interest are:
 
-Finally, above, we see a third example, which is a combination of the two previous ones, i.e., a confounder affecting all three nodes $\{H, BA, P\}$. However, if we do sensitivity analysis on the previous two cases above, we would implicitly cover this case. Hence, in summary, we are now fairly certain that the focus for our sensitivity analysis of unknown confounders should focus on the first two cases, and we should design a generative model with our treatment $BA$, our outcome $P$, and $H$ which we have adjusted for. With such a model, we can analyze the impact the two possible confounders can have when estimating the direct effect of $BA$ on $P$.
-
-Hence, four variables are of interest to us:
-
-* Business Area ($BA$), treatment: $\mathsf{Categorical}$ distribution; $\leq5$ cat.
-* Hardware ($H$), adjusted: $\mathsf{Categorical}$ distribution; $\leq6$ cat.
-* Productivity ($P$), outcome: Unit interval $[0,1]$, i.e., $\mathsf{Beta}$ distribution, with a $\mathsf{logit}$ link for the $\mu$ parameter and a $\mathsf{log}$ link for the $\phi$ parameter.
+* Team Size ($TS$), treatment: $\mathbb{N}^+$, a natural positive number indicating number of members in a team.
+* Effort ($E$), outcome: $\mathbb{N}^+$, a natural positive number indicating hours spent in a project.
 * Confounder ($C$): Assume $\mathbb{R}$, i.e., a $\mathsf{Normal}$ distribution.
 
-Let's design a generative model including the variables above, but first without a confounder, to ensure that we can recover our parameter values. For this we'll use the excellent {simcausal} package [@simcausal].
+Let's design a generative model according to the above.^[For this we'll use the excellent {simcausal} package [@simcausal].]
 
-```{r, echo=FALSE, out.width="60%", fig.align="center"}
-edgeBasic <- dagify(
-  P ~ BA, 
-  H ~ BA,
-  P ~ H,
-  coords = list(
-    x = c(BA = 1, P = 1, H = 0.7),
-    y = c(BA = 2, P = 1, H = 1.75)
-  )
-)
-ggdag(edgeBasic) + theme_dag()
+```{r 0th-sim, cache=TRUE, warnings=FALSE, results='hide', message=FALSE}
+N <- seq(25, 250, 25) # Sample sizes
+Nsim <- 250 # num sim runs
+
+# Set varying beta effects on confounder and treatment and team size
+b_CTS <- 1.5 # vary this too
+b_C <- 0.3 # vary this too
+b_TS <- 0.2 # vary this too
+
+C <- rnorm(N)
+TS <- rpois(N, b_CTS * C + 5)
+E <- rnorm(N, b_C * C + b_TS * TS)
+df <- data.frame(C = C, TS = TS, E = E)
+
+p <- get_prior(E ~ C + TS, data = df)
+p[1,1] <- "normal(0, 1)"
+p[2,1] <- "normal(0, 1)"
+p[4,1] <- "normal(0, 2.5)"
+p[5,1] <- "exponential(1)"
+
+# Run once so we can reuse model in sim
+m <- brm(E ~ C + TS, data = df, prior = p, refresh = 0)
+
+# Store results from all the runs
+TS_hat <- rep(NA, Nsim)
+
+# Simulate
+for( j in N) {
+  for(i in 1:Nsim) {
+    Nj <- eval(j)
+    C <- rnorm(Nj)
+    TS <- rpois(Nj, b_CTS * C + 5)
+    E <- rnorm(Nj, b_C * C + b_TS * TS) 
+    d <- data.frame(C = C, TS = TS, E = E)
+  
+    m <- update(m, newdata = d, refresh = 0)
+    TS_hat[i] <- fixef(m)[1] + fixef(m)[3]
+  }
+
+  TS_err <- qt(0.975, df = j - 1) * sd(TS_hat)/sqrt(j)
+
+  # Lower and upper CI
+  TS_ci_l <- format(round(mean(TS_hat) - TS_err, 3), nsmall = 3)
+  TS_ci_u <- format(round(mean(TS_hat) + TS_err, 3), nsmall = 3)
+  TS_mu <- format(round(mean(TS_hat), 3), nsmall = 3)
+  print(paste0("Nsim=", j, " TS=", b_TS, ", while 95% CI for simulated mu is: ", TS_mu, "[", TS_ci_l, ",", TS_ci_u, "]"))
+}
 ```
 
-```{r 1st-sim, cache=TRUE, warnings=FALSE, message=FALSE}
-N <- 250 # Sample size
+```{r 1st-sim, cache=TRUE, warnings=FALSE, results='hide', message=FALSE}
+N <- seq(25, 250, 25) # Sample sizes
 
-# Set beta effects
-b_H <- 0.3
-b_BA <- 0.2
+# Set beta effects on confounder and treatment
+b_C <- 0.3 # vary this too
+b_TS <- 0.2 # vary this too
+
+# confounder
+mean <- 2
+sd <- 2
 
 D <- DAG.empty()
 
 D <- D +
-  # Set BA to categorical (c=3).
-  # Make sure it starts at 1, to ensure sane priors later.
-  node("BA", 
-     distr = "rcat.b1",
-     probs = c(0.5, 0.25, 0.25)) +
+  # Set C to Normal(mu,sd)
+  node("C",
+     distr = "rnorm",
+     #mean = mean,
+     mean = 0,
+     #sd = sd) +
+     sd = 1) +
+     
+  # Set TS to Poisson(lambda)
+  node("TS", 
+     distr = "rpois",
+     lambda = 1.5 * C + 5) +
   
-  # Set H to categorical (c=3), starting at 1
-  # Make sure we include BA in H!
-  node("H",
-     distr = "rcat.b1",
-     probs = (BA == 1) * c(0.7, 0.1, 0.2) + (BA == 2) * c(0.2, 0.1, 0.7) + (BA == 3) * c(0.2, 0.1, 0.7)) + 
-  
-  # Generate Beta(mu, phi) with H and BA.
-  # Note: We use rbeta_mean() which is a mean parameterization of Beta.
-  node("P",
-     distr = "rbeta_mean",
-     phi = 4,
-     mu = inv_logit(b_H * H + b_BA * BA))
+  # Generate Effort as a function of C and TS
+  # Since lambda >> 50 we can assume a Gaussian distribution
+  node("E",
+     distr = "rnorm",
+     mean = b_C * C + b_TS * TS)
 
-# Need to use inv_logit() since mu in Beta needs it when modelling
-Dset <- set.DAG(D, vecfun  = "inv_logit")
+Dset <- set.DAG(D)
 
 # Gen N samples
 d <- simcausal::sim(Dset, n = N)
 
 # Set sane priors
-p <- get_prior(P ~ H + BA, family = Beta, data = d)
-p[1,1] <- "normal(0,1)"
-p[4,1] <- "normal(0,2)"
+p <- get_prior(E ~ C + TS, data = d)
+p[1,1] <- "normal(0, 1)"
+p[2,1] <- "normal(0, 1)"
+p[4,1] <- "normal(0, 2.5)"
+p[5,1] <- "exponential(1)"
 
 # Run once so we can reuse model in sim
-m <- brm(P ~ H + BA, family = Beta, data = d, prior = p, refresh = 0)
+m <- brm(E ~ C + TS, data = d, prior = p, refresh = 0)
 
 # Store results from all the runs
-BA_hat <- rep(NA, N)
+TS_hat <- rep(NA, N)
 
 # Simulate
 for(i in 1:N) {
   d <- simcausal::sim(Dset, n = N)
-  m <- update(m, newdata = d, family = Beta, refresh = 0)
-  BA_hat[i] <- fixef(m)[1] + fixef(m)[3]
+  m <- update(m, newdata = d, refresh = 0)
+  TS_hat[i] <- fixef(m)[1] + fixef(m)[3]
 }
 
 # Margin of error 0.95
-BA_err <- qt(0.975, df = N - 1) * sd(BA_hat)/sqrt(N)
+TS_err <- qt(0.975, df = N - 1) * sd(TS_hat)/sqrt(N)
 
 # Lower and upper CI
-BA_ci_l <- format(round(mean(BA_hat) - BA_err, 3), nsmall = 3)
-BA_ci_u <- format(round(mean(BA_hat) + BA_err, 3), nsmall = 3)
-BA_mu <- format(round(mean(BA_hat), 3), nsmall = 3)
+TS_ci_l <- format(round(mean(TS_hat) - TS_err, 3), nsmall = 3)
+TS_ci_u <- format(round(mean(TS_hat) + TS_err, 3), nsmall = 3)
+TS_mu <- format(round(mean(TS_hat), 3), nsmall = 3)
+```
 
-print(paste0("BA=", b_BA, ", while 95% CI for simulated mu is: ", BA_mu, "[", BA_ci_l, ",", BA_ci_u, "]"))
+```{r res-sim, cache=TRUE, warnings=FALSE, message=FALSE}
+print(paste0("TS=", b_TS, ", while 95% CI for simulated mu is: ", TS_mu, "[", TS_ci_l, ",", TS_ci_u, "]"))
 # nice and tight
 ```
 
-The simulation indicates (even when we add noise) that we can recover the parameters we set. Let's create a data set where we also have a confounder $C$, which we first condition on and then do not include it in the model. The confounder $C$ will affect both the outcome $P$ and the treatment $BA$.
+The simulation indicates, even if we would add more noise, that we can recover the parameter values.
 
-```{r 2nd-sim, cache=TRUE, warning=FALSE, message=FALSE, results='hold'}
-N <- 250 # Sample size
-
-# Set beta effects
-b_H <- 0.3
-b_BA <- 0.2
-b_C <- 0.5
-
-D <- DAG.empty()
-
-D <- D +
-  # Confounder with Gaussian distribution
-  node("C",
-      distr = "rnorm",
-      mean = 0,
-      sd = 2) +
-
-  # Set BA to categorical (c=3).
-  # Make sure it starts at 1, to ensure sane priors later.
-  # Let C be a causal effect on BA.
-  node("BA", 
-    distr = "rcat.b1",
-    probs = softmax(C * c(0.5, 0.25, 0.25))) + 
-
-  # Set H to categorical (c=3).
-  # Let BA be a causal effect on H.
-  node("H",
-    distr = "rcat.b1",
-    probs = (BA == 1) * c(0.7, 0.1, 0.2) + (BA == 2) * c(0.2, 0.1, 0.7) + (BA == 3) * c(0.2, 0.1, 0.7)) + 
-
-  # Generate Beta(mu, phi) with H, BA, and C.
-  # Note: We use rbeta_mean() which is a mean parameterization of Beta.
-  node("P",
-    distr = "rbeta_mean",
-    phi = 4,
-    mu = inv_logit(b_H * H + b_BA * BA + b_C * C))
-
-# Need to use inv_logit() since mu in Beta needs it when modelling
-Dset <- set.DAG(D, vecfun  = c("inv_logit", "softmax"))
-
-# Gen N samples
-d <- simcausal::sim(Dset, n = N)
-d$P[d$P == 1] <- 0.99999999 # nudge iff 1
-
-# Set sane priors
-p <- get_prior(P ~ H + BA + C, family = Beta, data = d)
-p[1,1] <- "normal(0,1)"
-p[5,1] <- "normal(0,2)"
-
-# Run once so we can reuse model in sim
-m <- brm(P ~ H + BA + C, family = Beta, data = d, prior = p, refresh = 0, backend = "rstan")
-
-# Store results from all the runs
-BA_hat <- rep(NA, N)
-
-# Simulate
-for(i in 1:N) {
-  d <- simcausal::sim(Dset, n = N)
-  d$P[d$P == 1] <- 0.99999999
-
-  # update model using new data
-  m <- update(m, newdata = d, family = Beta, refresh = 0)
-
-  # store coefficients
-  BA_hat[i] <- fixef(m)[1] + fixef(m)[3]
-}
-
-# Margin of error 0.95
-BA_err <- qt(0.975, df = N - 1) * sd(BA_hat)/sqrt(N)
-
-# Lower and upper CI
-BA_ci_l <- format(round(mean(BA_hat) - BA_err, 3), nsmall = 3)
-BA_ci_u <- format(round(mean(BA_hat) + BA_err, 3), nsmall = 3)
-
-# mean
-BA_mu <- format(round(mean(BA_hat), 3), nsmall = 3)
-
-print(paste0("BA=", b_BA, ", while 95% CI for simulated mu (when including C) is: ", BA_mu, "[", BA_ci_l, ",", BA_ci_u, "]"))
-
-###############################################################################
-############### and w/o the confounder to see that it all works ###############
-###############################################################################
-
-# Gen N samples
-d <- simcausal::sim(Dset, n = N)
-d$P[d$P == 1] <- 0.99999999
-
-# Set sane priors
-p <- get_prior(P ~ H + BA, family = Beta, data = d)
-p[1,1] <- "normal(0,1)"
-p[4,1] <- "normal(0,2)"
-
-# Run once so we can reuse model in sim
-m <- brm(P ~ H + BA, family = Beta, data = d, prior = p, refresh = 0, backend = "rstan")
-
-# Store results from all the runs
-BA_hat <- rep(NA, N)
-
-# Simulate
-for(i in 1:N) {
-  d <- simcausal::sim(Dset, n = N)
-  d$P[d$P == 1] <- 0.99999999
-
-  # update model using new data
-  m <- update(m, newdata = d, family = Beta, refresh = 0)
-
-  # store coefficients
-  BA_hat[i] <- fixef(m)[1] + fixef(m)[3]
-}
-
-# Margin of error 0.95
-BA_err <- qt(0.975, df = N - 1) * sd(BA_hat)/sqrt(N)
-
-# Lower and upper CI
-BA_ci_l <- format(round(mean(BA_hat) - BA_err, 3), nsmall = 3)
-BA_ci_u <- format(round(mean(BA_hat) + BA_err, 3), nsmall = 3)
-
-# mean
-BA_mu <- format(round(mean(BA_hat), 3), nsmall = 3)
-
-print(paste0("BA=", b_BA, ", while 95% CI for simulated mu (when not including C) is: ", BA_mu, "[", BA_ci_l, ",", BA_ci_u, "]"))
-```
-
-Above we saw, in the first case, that when we condition on $C$ we also get correct estimates of $BA$, and just as in the early example, when we don't condition on $C$ we get a biased estimate of $BA$. 
-
-Next, we need to decide on different effect sizes of $BA \rightarrow P$, and then analyze what size a confounder, $C$, need to be to invalidate those effects. After that we do the same for the confounder affecting $P$ and $H$. We can then look at how the two confounders can affect the direct effect of $BA$ on $P$, given assumptions that change on the continuous scale.
-
-## Sensitivity analysis of unknown confounders
-<!-- TODO: Remember to do coeff/(1-coeff) to transform Beta reg coef to OR, before tipping results -->
+Next, we need to decide on different effect sizes of $TS \rightarrow E$, and then analyze what size a confounder, $C$, need to be to invalidate those effects. We can assume that $TS$ has a positive effect on $E$, i.e., the larger the team, the more hours spent.
 
 # References
