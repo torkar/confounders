@@ -10,13 +10,6 @@ header-includes:
    - \usepackage{amssymb}
 bibliography: references.bib
 ---
-<!--
-# TODO
-# First, vary N so we see if it's worthwhile first!
-# Second, vary SMD and Beta according to x steps in effect size
-# Finally, connect back to implications for the study that will be planned.
-# TODO: Remember to do coeff/(1-coeff) to transform Beta reg coef to OR, before tipping results
--->
 
 # Introduction
 
@@ -24,20 +17,17 @@ This document can be used to replicate the results from the manuscript on confou
 
 ```{r, include=FALSE}
 # Package names
-packages <- c("ggplot2", "brms", "ggdag", "cmdstanr", "tipr", "broom", "broom.mixed", "tidyverse", "dagitty", "bayesfam", "simcausal", "rethinking")
+packages <- c("ggplot2", "brms", "ggdag", "cmdstanr", "tipr", "broom", "broom.mixed", "tidyverse", "dagitty", "rethinking", "foreach", "doParallel", "bayesplot")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
 if (any(installed_packages == FALSE)) {
   install.packages(packages[!installed_packages])
-  # bayesfam you need to install via GitHub...
-  # https://github.com/sims1253/bayesfam
 }
 
 # Packages loading
 invisible(lapply(packages, library, character.only = TRUE))
 # theme_set(theme_minimal())
-options(simcausal.verbose = FALSE)
 # If you want to run with Stan and use MCMC then you need to install cmdstan in R:
 # > cmdstanr::install_cmdstan(cores=8)
 ```
@@ -60,7 +50,7 @@ myDAG <- dagify(
   Qual ~ Skills,
   Qual ~ Lang,
   exposure = "Lang", # treatment
-  outcome = "Qual", 
+  outcome = "Qual",
   coords = list(
     x = c(Lang = 1, Skills = 2, Qual = 3),
     y = c(Lang = 1, Skills = 2, Qual = 1)
@@ -105,8 +95,8 @@ withSkills <- brm(
 Disregarding the estimate for our confounder, Skills (we're seldom interested in the causal effect of a confounder, but there are exceptions), the estimates we have of Lang, i.e., $\widehat{\mathrm{Lang}}$, is what interests us.
 
 ```{r}
-fixef(withSkills)[2,1]
-fixef(withoutSkills)[2,1]
+fixef(withSkills)[2, 1]
+fixef(withoutSkills)[2, 1]
 ```
 
 Conditioning on Skills allows us to get the correct estimate for Lang ($\widehat{\mathrm{Lang}}_s \approx$ `r round(fixef(withSkills)[2,1], 2)`) since we close the backdoor. If we don't condition on Skills we get a biased (in this case positive) estimate, i.e., $\widehat{\mathrm{Lang}}_{\neg s} \approx$ `r round(fixef(withoutSkills)[2,1], 2)`, because of Skills's effect on both Lang and Qual.
@@ -179,7 +169,7 @@ tip_c_avg <- tip_c |>
 
 ggplot(tip_c, aes(x = c, fill = factor(x))) +
   geom_density(alpha = 0.5) + 
-  geom_vline(data = tip_c_avg, aes(xintercept = avg, color = factor(x))) + 
+  geom_vline(data = tip_c_avg, aes(xintercept = avg, color = factor(x))) +
   scale_fill_grey() + theme_classic() +
   theme(legend.position = "none") +
   labs(y= "", x = "Quality score")
@@ -411,7 +401,7 @@ The case we have in front of us is the classical case of a confounder affecting 
 
 ```{r, echo=FALSE, fig.align="center"}
 edgeBasic <- dagify(
-      E ~ TS, 
+      E ~ TS,
       E ~ C,
       TS ~ C,
       coords = list(
@@ -433,7 +423,23 @@ In summary the characteristics of the three variables of interest are:
 Let's design a generative model according to the above.^[For this we'll use the excellent {simcausal} package [@simcausal].]
 
 ```{r 0th-sim, cache=TRUE, warnings=FALSE, results='hide', message=FALSE}
-N <- seq(25, 250, 25) # Sample sizes
+
+# TODO
+# First, vary N so we see if it's worthwhile first!
+# Second, vary SMD and Beta according to x steps in effect size
+# Finally, connect back to implications for the study that will be planned.
+# TODO: Remember to do coeff/(1-coeff) to transform Beta reg coef to OR, before tipping results
+
+# https://stackoverflow.com/questions/1395309/how-to-make-r-use-all-processors
+# https://nceas.github.io/oss-lessons/parallel-computing-in-r/parallel-computing-in-r.html
+# run with doParallel instead
+# cl <- makeCluster(detectCores() - 2)
+# registerDoParallel(cl, cores = detectCores() - 2)
+
+# I have 8 HP cores and 2
+registerDoParallel(detectCores() - 2)
+
+N <- seq(25, 250, 50) # Sample sizes for sim
 Nsim <- 250 # num sim runs
 
 # Set varying beta effects on confounder and treatment and team size
@@ -441,119 +447,43 @@ b_CTS <- 1.5 # vary this too
 b_C <- 0.3 # vary this too
 b_TS <- 0.2 # vary this too
 
-C <- rnorm(N)
-TS <- rpois(N, b_CTS * C + 5)
-E <- rnorm(N, b_C * C + b_TS * TS)
+C <- rnorm(100)
+TS <- rpois(100, b_CTS * C + 5)
+E <- rnorm(100, b_C * C + b_TS * TS)
 df <- data.frame(C = C, TS = TS, E = E)
 
 p <- get_prior(E ~ C + TS, data = df)
-p[1,1] <- "normal(0, 1)"
-p[2,1] <- "normal(0, 1)"
-p[4,1] <- "normal(0, 2.5)"
-p[5,1] <- "exponential(1)"
+p[1, 1] <- "normal(0, 1)"
+p[2, 1] <- "normal(0, 1)"
+p[4, 1] <- "normal(0, 2)"
+p[5, 1] <- "exponential(1)"
 
 # Run once so we can reuse model in sim
+# TODO PriPC
 m <- brm(E ~ C + TS, data = df, prior = p, refresh = 0)
 
-# Store results from all the runs
-TS_hat <- rep(NA, Nsim)
-
 # Simulate
-for( j in N) {
-  for(i in 1:Nsim) {
-    Nj <- eval(j)
-    C <- rnorm(Nj)
-    TS <- rpois(Nj, b_CTS * C + 5)
-    E <- rnorm(Nj, b_C * C + b_TS * TS) 
+# N = 25, 75, 125, 175, 225
+l <- foreach(i = N, .combine = rbind) %:%
+  # run 250 times to capture stochastic behavior
+  foreach(j = 1:250, .combine = c) %dopar% {
+    Ni <- eval(i)
+    C <- rnorm(Ni)
+    TS <- rpois(Ni, b_CTS * C + 5)
+    E <- rnorm(Ni, b_C * C + b_TS * TS)
     d <- data.frame(C = C, TS = TS, E = E)
-  
+
     m <- update(m, newdata = d, refresh = 0)
-    TS_hat[i] <- fixef(m)[1] + fixef(m)[3]
+    fixef(m)[1] + fixef(m)[3]
   }
+  # Each row is sample sizes (5 diff)
+  # Each column is the number of executions 250
+  # Average over this!
+  # Use HPDI 0.5 & 0.9 and save values...
 
-  TS_err <- qt(0.975, df = j - 1) * sd(TS_hat)/sqrt(j)
-
-  # Lower and upper CI
-  TS_ci_l <- format(round(mean(TS_hat) - TS_err, 3), nsmall = 3)
-  TS_ci_u <- format(round(mean(TS_hat) + TS_err, 3), nsmall = 3)
-  TS_mu <- format(round(mean(TS_hat), 3), nsmall = 3)
-  print(paste0("Nsim=", j, " TS=", b_TS, ", while 95% CI for simulated mu is: ", TS_mu, "[", TS_ci_l, ",", TS_ci_u, "]"))
-}
+stopImplicitCluster()
 ```
 
-```{r 1st-sim, cache=TRUE, warnings=FALSE, results='hide', message=FALSE}
-N <- seq(25, 250, 25) # Sample sizes
-
-# Set beta effects on confounder and treatment
-b_C <- 0.3 # vary this too
-b_TS <- 0.2 # vary this too
-
-# confounder
-mean <- 2
-sd <- 2
-
-D <- DAG.empty()
-
-D <- D +
-  # Set C to Normal(mu,sd)
-  node("C",
-     distr = "rnorm",
-     #mean = mean,
-     mean = 0,
-     #sd = sd) +
-     sd = 1) +
-     
-  # Set TS to Poisson(lambda)
-  node("TS", 
-     distr = "rpois",
-     lambda = 1.5 * C + 5) +
-  
-  # Generate Effort as a function of C and TS
-  # Since lambda >> 50 we can assume a Gaussian distribution
-  node("E",
-     distr = "rnorm",
-     mean = b_C * C + b_TS * TS)
-
-Dset <- set.DAG(D)
-
-# Gen N samples
-d <- simcausal::sim(Dset, n = N)
-
-# Set sane priors
-p <- get_prior(E ~ C + TS, data = d)
-p[1,1] <- "normal(0, 1)"
-p[2,1] <- "normal(0, 1)"
-p[4,1] <- "normal(0, 2.5)"
-p[5,1] <- "exponential(1)"
-
-# Run once so we can reuse model in sim
-m <- brm(E ~ C + TS, data = d, prior = p, refresh = 0)
-
-# Store results from all the runs
-TS_hat <- rep(NA, N)
-
-# Simulate
-for(i in 1:N) {
-  d <- simcausal::sim(Dset, n = N)
-  m <- update(m, newdata = d, refresh = 0)
-  TS_hat[i] <- fixef(m)[1] + fixef(m)[3]
-}
-
-# Margin of error 0.95
-TS_err <- qt(0.975, df = N - 1) * sd(TS_hat)/sqrt(N)
-
-# Lower and upper CI
-TS_ci_l <- format(round(mean(TS_hat) - TS_err, 3), nsmall = 3)
-TS_ci_u <- format(round(mean(TS_hat) + TS_err, 3), nsmall = 3)
-TS_mu <- format(round(mean(TS_hat), 3), nsmall = 3)
-```
-
-```{r res-sim, cache=TRUE, warnings=FALSE, message=FALSE}
-print(paste0("TS=", b_TS, ", while 95% CI for simulated mu is: ", TS_mu, "[", TS_ci_l, ",", TS_ci_u, "]"))
-# nice and tight
-```
-
-The simulation indicates, even if we would add more noise, that we can recover the parameter values.
 
 Next, we need to decide on different effect sizes of $TS \rightarrow E$, and then analyze what size a confounder, $C$, need to be to invalidate those effects. We can assume that $TS$ has a positive effect on $E$, i.e., the larger the team, the more hours spent.
 
