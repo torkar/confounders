@@ -420,7 +420,7 @@ In summary the characteristics of the three variables of interest are:
 * Effort ($E$), outcome: $\mathbb{N}^+$, a natural positive number indicating hours spent in a project.
 * Confounder ($C$): Assume $\mathbb{R}$, i.e., a $\mathsf{Normal}$ distribution.
 
-Let's design a generative model according to the above.^[For this we'll use the excellent {simcausal} package [@simcausal].]
+Let's design a generative model according to the above.
 
 ```{r 0th-sim, cache=TRUE, warnings=FALSE, results='hide', message=FALSE}
 
@@ -430,22 +430,14 @@ Let's design a generative model according to the above.^[For this we'll use the 
 # Finally, connect back to implications for the study that will be planned.
 # TODO: Remember to do coeff/(1-coeff) to transform Beta reg coef to OR, before tipping results
 
-# https://stackoverflow.com/questions/1395309/how-to-make-r-use-all-processors
-# https://nceas.github.io/oss-lessons/parallel-computing-in-r/parallel-computing-in-r.html
-# run with doParallel instead
-# cl <- makeCluster(detectCores() - 2)
-# registerDoParallel(cl, cores = detectCores() - 2)
+registerDoParallel(detectCores() - 1)
 
-# I have 8 HP cores and 2
-registerDoParallel(detectCores() - 2)
+N <- seq(10, 50, 5) # Sample sizes for sim
 
-N <- seq(25, 250, 50) # Sample sizes for sim
-Nsim <- 250 # num sim runs
-
-# Set varying beta effects on confounder and treatment and team size
-b_CTS <- 1.5 # vary this too
-b_C <- 0.3 # vary this too
-b_TS <- 0.2 # vary this too
+# Set effects
+b_CTS <- 1.5  # vary this too
+b_C <- 0.3    # vary this too
+b_TS <- 0.2   # vary this too
 
 C <- rnorm(100)
 TS <- rpois(100, b_CTS * C + 5)
@@ -459,32 +451,30 @@ p[4, 1] <- "normal(0, 2)"
 p[5, 1] <- "exponential(1)"
 
 # Run once so we can reuse model in sim
-# TODO PriPC
 m <- brm(E ~ C + TS, data = df, prior = p, refresh = 0)
 
 # Simulate
-# N = 25, 75, 125, 175, 225
-l <- foreach(i = N, .combine = rbind) %:%
-  # run 250 times to capture stochastic behavior
-  foreach(j = 1:250, .combine = c) %dopar% {
+l <- foreach(i = N, .combine = rbind) %:% # rows
+  # run j times to capture stochastic behavior
+  foreach(j = 1:250, .combine = c) %dopar% { # columns
     Ni <- eval(i)
-    C <- rnorm(Ni)
-    TS <- rpois(Ni, b_CTS * C + 5)
-    E <- rnorm(Ni, b_C * C + b_TS * TS)
+    C <- rnorm(Ni) # confounder
+    TS <- rpois(Ni, b_CTS * C + 5) # effect of interest affected by C+5
+    E <- rnorm(Ni, b_C * C + b_TS * TS) # E affected by b_TS
     d <- data.frame(C = C, TS = TS, E = E)
 
     m <- update(m, newdata = d, refresh = 0)
-    fixef(m)[1] + fixef(m)[3]
+    fixef(m)[3]
   }
-  # Each row is sample sizes (5 diff)
-  # Each column is the number of executions 250
-  # Average over this!
+  # Average over each row!
+  # mean / median / q25/75 l[c(1-9),]
   # Use HPDI 0.5 & 0.9 and save values...
 
+HPDI(l[2, 1:250], prob = 0.95)
 stopImplicitCluster()
 ```
 
 
-Next, we need to decide on different effect sizes of $TS \rightarrow E$, and then analyze what size a confounder, $C$, need to be to invalidate those effects. We can assume that $TS$ has a positive effect on $E$, i.e., the larger the team, the more hours spent.
+Next, we need to decide on different effect sizes of $TS \rightarrow E$, and then analyze what size a confounder, $C$, need to be to invalidate those effects. We can safely assume that $TS$ has a positive effect on $E$, i.e., the larger the team, the more hours spent.
 
 # References
