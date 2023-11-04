@@ -423,44 +423,50 @@ In summary the characteristics of the three variables of interest are:
 Let's design a generative model according to the above.
 
 ```{r 0th-sim, cache=TRUE, warnings=FALSE, results='hide', message=FALSE}
-
 # TODO
 # First, vary N so we see if it's worthwhile first!
+#
 # Second, vary SMD and Beta according to x steps in effect size
+#
 # Finally, connect back to implications for the study that will be planned.
-# TODO: Remember to do coeff/(1-coeff) to transform Beta reg coef to OR, before tipping results
+#
+# TODO: Remember to do coeff/(1-coeff) to transform Beta reg coef to OR, before
+# tipping results
 
 registerDoParallel(detectCores() - 1)
 
-N <- seq(10, 50, 5) # Sample sizes for sim
+N <- seq(10, 100, 5) # Sample sizes for sim
+Nsim <- 250 # number of sim runs
 
 # Set effects
-b_CTS <- 1.5  # vary this too
-b_C <- 0.3    # vary this too
-b_TS <- 0.2   # vary this too
+b_CTS <- 1.5  # Confounder's effect on TS; vary this too
+b_C <- 0.3    # Confounder's effect on outcome; vary this too
+b_TS <- 0.2   # TS's effect on outcome; vary this too
 
 C <- rnorm(100)
-TS <- rpois(100, b_CTS * C + 5)
+TS <- rpois(100, 5 + b_CTS * C)
 E <- rnorm(100, b_C * C + b_TS * TS)
 df <- data.frame(C = C, TS = TS, E = E)
 
-p <- get_prior(E ~ C + TS, data = df)
-p[1, 1] <- "normal(0, 1)"
-p[2, 1] <- "normal(0, 1)"
-p[4, 1] <- "normal(0, 2)"
-p[5, 1] <- "exponential(1)"
-
+# Set weakly informative priors
+# N(0,2) prior on intercept; still ~0.008 prob for absurd, ⍺ = {-5,5}, effects
+# N(0,1) prior on β est; still ~0.005 prob for absurd, β = {-3,3}, effects
+# Exponential(1) on σ; still ~0.005 prob for absurd, σ = 5, effects
 # Run once so we can reuse model in sim
-m <- brm(E ~ C + TS, data = df, prior = p, refresh = 0)
+m <- brm(E ~ C + TS, data = df, refresh = 0,
+  prior = c(prior(normal(0, 1), class = b),
+            prior(normal(0, 2), class = Intercept),
+            prior(exponential(1), class = sigma))
+)
 
 # Simulate
 l <- foreach(i = N, .combine = rbind) %:% # rows
   # run j times to capture stochastic behavior
-  foreach(j = 1:250, .combine = c) %dopar% { # columns
+  foreach(j = 1:Nsim, .combine = c) %dopar% { # columns
     Ni <- eval(i)
     C <- rnorm(Ni) # confounder
-    TS <- rpois(Ni, b_CTS * C + 5) # effect of interest affected by C+5
-    E <- rnorm(Ni, b_C * C + b_TS * TS) # E affected by b_TS
+    TS <- rpois(Ni, 5 + b_CTS * C) # treatment affected by C+5
+    E <- rnorm(Ni, b_C * C + b_TS * TS) # E affected by b_TS and b_C
     d <- data.frame(C = C, TS = TS, E = E)
 
     m <- update(m, newdata = d, refresh = 0)
@@ -470,11 +476,11 @@ l <- foreach(i = N, .combine = rbind) %:% # rows
   # mean / median / q25/75 l[c(1-9),]
   # Use HPDI 0.5 & 0.9 and save values...
 
-HPDI(l[2, 1:250], prob = 0.95)
+HPDI(l[2, 1:Nsim], prob = 0.95)
 stopImplicitCluster()
 ```
 
 
-Next, we need to decide on different effect sizes of $TS \rightarrow E$, and then analyze what size a confounder, $C$, need to be to invalidate those effects. We can safely assume that $TS$ has a positive effect on $E$, i.e., the larger the team, the more hours spent.
+Next, we need to decide on different effect sizes of $TS \rightarrow E$, and then analyze what size a confounder, $C$, need to be to invalidate those effects. We can safely assume that $TS$ has a positive effect on $E$, i.e., the larger the team, the more effort spent.
 
 # References
