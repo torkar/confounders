@@ -17,7 +17,9 @@ This document can be used to replicate the results from the manuscript on confou
 
 ```{r, include=FALSE}
 # Package names
-packages <- c("ggplot2", "brms", "ggdag", "cmdstanr", "tipr", "broom", "broom.mixed", "tidyverse", "dagitty", "rethinking", "foreach", "doParallel", "bayesplot")
+packages <- c("ggplot2", "brms", "ggdag", "cmdstanr", "tipr", "broom",
+              "broom.mixed", "tidyverse", "dagitty", "rethinking", "foreach",
+              "doParallel", "bayesplot")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -27,9 +29,6 @@ if (any(installed_packages == FALSE)) {
 
 # Packages loading
 invisible(lapply(packages, library, character.only = TRUE))
-# theme_set(theme_minimal())
-# If you want to run with Stan and use MCMC then you need to install cmdstan in R:
-# > cmdstanr::install_cmdstan(cores=8)
 ```
 
 # A first example to build intuition
@@ -435,13 +434,13 @@ Let's design a generative model according to the above.
 
 registerDoParallel(detectCores() - 1)
 
-N <- seq(10, 100, 5) # Sample sizes for sim
-Nsim <- 250 # number of sim runs
-
 # Set effects
-b_CTS <- 1.5  # Confounder's effect on TS; vary this too
-b_C <- 0.3    # Confounder's effect on outcome; vary this too
-b_TS <- 0.2   # TS's effect on outcome; vary this too
+# Confounder's effect on TS; vary this too c(-1.0, -0.5, 0.0, 0.5, 1.0)
+b_CTS <- 1.0
+# Confounder's effect on outcome; vary this too c(-1.0, -0.5, 0.0, 0.5, 1.0)
+b_C <- 1.3
+# TS's effect on outcome; vary this too (-0.5, -0.25, -0.1, 0.1, 0.25, 0.5)
+b_TS <- 0.1
 
 C <- rnorm(100)
 TS <- rpois(100, 5 + b_CTS * C)
@@ -459,25 +458,58 @@ m <- brm(E ~ C + TS, data = df, refresh = 0,
             prior(exponential(1), class = sigma))
 )
 
-# Simulate
-l <- foreach(i = N, .combine = rbind) %:% # rows
-  # run j times to capture stochastic behavior
-  foreach(j = 1:Nsim, .combine = c) %dopar% { # columns
-    Ni <- eval(i)
-    C <- rnorm(Ni) # confounder
-    TS <- rpois(Ni, 5 + b_CTS * C) # treatment affected by C+5
-    E <- rnorm(Ni, b_C * C + b_TS * TS) # E affected by b_TS and b_C
-    d <- data.frame(C = C, TS = TS, E = E)
+# Simulate varying sample size `n` and `n_sim`
+# n A list of integers. Randomly generate `n` number of values.
+# n_sim An integer. Run `n_sim` times to capture stochasticity.
+# g A list from `expand.grid()` with all combinations of β values.
+# returns A numeric vector of size `n_sim` rows and `n` columns.
+sim <- function(n = 125, n_sim = 200,
+                g = expand.grid(c(-1, 1), c(-1, 1), c(-0.1, 0.1))) {
 
-    m <- update(m, newdata = d, refresh = 0)
-    fixef(m)[3]
+  l <- list()
+
+  for (i in seq_len(nrow(g))) {
+    b_cts <- g[i, 1]
+    b_c <- g[i, 2]
+    b_ts <- g[i, 3]
+
+    l[[i]] <- foreach(j = n, .combine = cbind) %:%
+      foreach(k = seq_len(n_sim), .combine = c) %dopar% {
+      C <- rnorm(j) # confounder
+      TS <- rpois(j, 5 + b_cts * C) # TS effect is 5
+
+      E <- rnorm(j, b_c * C + b_ts * TS) # E affected by b_TS and b_C
+      d <- data.frame(C = C, TS = TS, E = E)
+      m <- update(m, newdata = d, refresh = 0)
+      fixef(m)[3]
+    }
   }
-  # Average over each row!
-  # mean / median / q25/75 l[c(1-9),]
-  # Use HPDI 0.5 & 0.9 and save values...
+  return(l)
+}
 
-HPDI(l[2, 1:Nsim], prob = 0.95)
+n <- seq(10, 100, 5) # Sample sizes for the rand() functions
+n_sim <- 200 # number of sim runs
+
+# For β_ts we need to consider an effect size. Generally, for a coefficient β,
+# effect sizes between 0.10–0.29 are said to be only small, effect sizes between
+# 0.30–0.49 are medium, and effect sizes of 0.50 or greater are large.
+#
+# Cohen, J. Statistical Power Analysis for the Behavioral Sciences, 2nd ed.;
+# Erlbaum: Hillsdale, MI, USA, 1988; ISBN 0-8058-0283-5.
+# Fey, C.F.; Hu, T.; Delios, A. The Measurement and Communication of Effect
+# Sizes in Management Research. Manag. Organ. Rev. 2022, 1–22.
+g <- expand.grid(c(-1.0, -0.5, 0.5, 1.0), # β_cts
+                 c(-1.0, -0.5, 0.5, 1.0), # β_c
+                 c(-0.5, -0.3, -0.1, 0.1, 0.3, 0.5)) # β_ts!
+
+res <- sim(n, n_sim, g)
 stopImplicitCluster()
+
+# Average over each column!
+# mean / median / q25/75 l[c(1-9),]
+# Use HPDI 0.5 & 0.9 and save values...
+
+HPDI(res[[1]], prob = 0.95)
 ```
 
 
