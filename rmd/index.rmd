@@ -506,6 +506,7 @@ res <- sim(n, n_sim, g)
 
 stopImplicitCluster()
 ```
+
 <!-- HPDI(res[[1]][1:200, 1], prob = 0.95) # s=1/96, and all rows from column n=1/19 -->
 
 Next, we need to decide on different effect sizes of $TS \rightarrow E$, and then analyze what size a confounder, $C$, need to be to invalidate those effects. We can safely assume that $TS$ has a positive effect on $E$, i.e., the larger the team, the more effort spent.
