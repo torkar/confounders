@@ -16,19 +16,17 @@ bibliography: references.bib
 This document can be used to replicate the results from the manuscript on confounders. First, we provide a small example that serves as a simple case to build intuition. Second, we provide a larger example where we conduct a sensitivity analysis of unobserved/unknown confounders.
 
 ```{r, include=FALSE}
-# Package names
-packages <- c("ggplot2", "brms", "ggdag", "cmdstanr", "tipr", "broom",
-              "broom.mixed", "tidyverse", "dagitty", "rethinking", "foreach",
-              "doParallel", "bayesplot")
-
-# Install packages not yet installed
-installed_packages <- packages %in% rownames(installed.packages())
-if (any(installed_packages == FALSE)) {
-  install.packages(packages[!installed_packages])
-}
-
-# Packages loading
-invisible(lapply(packages, library, character.only = TRUE))
+library(ggplot2)
+library(brms)
+library(ggdag)
+library(tipr)
+library(broom)
+library(broom.mixed)
+library(tidyverse)
+library(dagitty)
+library(rethinking)
+library(rethinking)
+library(doParallel)
 ```
 
 # A first example to build intuition
@@ -44,7 +42,7 @@ If we look at it as software engineers, one possible way to visualize this would
 A graphical summary (directed acyclic graph), of what we said above, can be visualized like this:
 
 ```{r, out.width="60%", fig.align="center"}
-myDAG <- dagify(
+my_dag <- dagify(
   Lang ~ Skills,
   Qual ~ Skills,
   Qual ~ Lang,
@@ -56,7 +54,7 @@ myDAG <- dagify(
   )
 )
 
-ggdag(myDAG) + theme_dag()
+ggdag(my_dag) + theme_dag()
 ```
 
 In the plot above we see that the confounder, Skills, has a causal effect on the treatment, Lang, and on the outcome, Qual. Also, Lang has a direct causal effect on Qual, but that is what we're generally speaking interested in estimating (i.e., treatment's effect on the outcome).
@@ -66,10 +64,11 @@ Confounders are scary, but no need to panic. If we condition on a confounder (i.
 Let's generate some fake data first. That way we *know* the truth.
 
 ```{r, message=FALSE, cache=TRUE}
-N <- 1e5
-skills <- rnorm(N) # exogenous 
-lang <- 0.5 * skills + rnorm(N) # endogenous
-qual <- 0.3 * skills + 0.4 * lang + rnorm(N) # endogenous; set language's effect on qual to 0.4
+n <- 1e5
+skills <- rnorm(n) # exogenous
+lang <- 0.5 * skills + rnorm(n) # endogenous
+# set language's effect on qual to 0.4
+qual <- 0.3 * skills + 0.4 * lang + rnorm(n) # endogenous
 
 d <- data.frame(
   skills = skills,
@@ -77,14 +76,14 @@ d <- data.frame(
   qual = qual
 )
 
-# next run two models, one where we don't condition on Skills, and one where we do
-withoutSkills <- brm(
+# run two models, one where we don't condition on Skills, and one where we do
+without_skills <- brm(
   qual ~ lang,
   data = d,
   refresh = 0
 )
 
-withSkills <- brm(
+with_skills <- brm(
   qual ~ lang + skills,
   data = d,
   refresh = 0
@@ -94,11 +93,11 @@ withSkills <- brm(
 Disregarding the estimate for our confounder, Skills (we're seldom interested in the causal effect of a confounder, but there are exceptions), the estimates we have of Lang, i.e., $\widehat{\mathrm{Lang}}$, is what interests us.
 
 ```{r}
-fixef(withSkills)[2, 1]
-fixef(withoutSkills)[2, 1]
+fixef(with_skills)[2, 1]
+fixef(without_skills)[2, 1]
 ```
 
-Conditioning on Skills allows us to get the correct estimate for Lang ($\widehat{\mathrm{Lang}}_s \approx$ `r round(fixef(withSkills)[2,1], 2)`) since we close the backdoor. If we don't condition on Skills we get a biased (in this case positive) estimate, i.e., $\widehat{\mathrm{Lang}}_{\neg s} \approx$ `r round(fixef(withoutSkills)[2,1], 2)`, because of Skills's effect on both Lang and Qual.
+Conditioning on Skills allows us to get the correct estimate for Lang ($\widehat{\mathrm{Lang}}_s \approx$ `r round(fixef(with_skills)[2,1], 2)`) since we close the backdoor. If we don't condition on Skills we get a biased (in this case positive) estimate, i.e., $\widehat{\mathrm{Lang}}_{\neg s} \approx$ `r round(fixef(without_skills)[2,1], 2)`, because of Skills's effect on both Lang and Qual.
 
 There are a few lessons to learn from the above simple example. First, confounders can have an effect on the estimate. Second, the bias is positive in this case, but can also be negative (change Skills's sign on Lang and you'll see). Third, if we want to have an unbiased estimate we need to condition on the confounder (Skills in this case), to close the backdoor that goes from $\overrightarrow{\mathrm{Lang} \leftarrow \mathrm{Skills} \rightarrow \mathrm{Qual}}$.
 
@@ -109,19 +108,19 @@ If we conduct an obervational study, and if we don't have access to Skills, i.e.
 If we look at the DAG we introduced previously, 
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center"}
-myDAG <- dagify(
+my_dag <- dagify(
   Lang ~ Skills,
   Qual ~ Skills,
   Qual ~ Lang,
   exposure = "Lang", # treatment
-  outcome = "Qual", 
+  outcome = "Qual",
   coords = list(
     x = c(Lang = 1, Skills = 2, Qual = 3),
     y = c(Lang = 1, Skills = 2, Qual = 1)
   )
 )
 
-ggdag(myDAG) + theme_dag()
+ggdag(my_dag) + theme_dag()
 ```
 
 we see that there are two arrows going from Skills. First, we have $\mathrm{Skills} \rightarrow \mathrm{Lang}$ and then we have $\mathrm{Skills} \rightarrow \mathrm{Qual}$. These two edges are dependent on each other. If we want to assess the effect of Skills on Lang, one often talks about the Scaled Mean Difference (SMD).
@@ -146,9 +145,9 @@ We will focus on the first two analyses, since they are more common.
 If we continue with the example, we can collect the true effect's lower confidence interval ($\approx 0.4$) and assume $\beta_{\mathrm{Skills}} = 1.5$, i.e., a 1-unit change in Skills would imply a 1.5-unit change in Qual:
 
 ```{r}
-tidy(withSkills, conf.int = TRUE) %>%
-  filter(term == "lang") %>%
-  pull(conf.low) %>%
+tidy(with_skills, conf.int = TRUE) |>
+  filter(term == "lang") |>
+  pull(conf.low) |>
   tip(confounder_outcome_effect = 1.5)
 ```
 
@@ -159,19 +158,19 @@ Assume that the Skills is some latent variable we have to measure such a constru
 However, as an empirical researcher you might not want to bet your life on it if you look at the plot below; this is how large a difference there would be between the two languages. More importantly, you should present these results to your readers and argue for why it is either a) unlikely that a counfounder exists, or b) go measure the latent variable Skills carefully.
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center"}
-tip_c <- tibble(x = sample(0:1, N, replace = TRUE)) |> 
-  mutate(c = rnorm(N, mean = 45 + (-2.3 * 1.5 * x), sd = 1.5))
+tip_c <- tibble(x = sample(0:1, n, replace = TRUE)) |>
+  mutate(c = rnorm(n, mean = 45 + (-2.3 * 1.5 * x), sd = 1.5))
 
 tip_c_avg <- tip_c |>
   group_by(x) |>
   summarize(avg = mean(c))
 
 ggplot(tip_c, aes(x = c, fill = factor(x))) +
-  geom_density(alpha = 0.5) + 
+  geom_density(alpha = 0.5) +
   geom_vline(data = tip_c_avg, aes(xintercept = avg, color = factor(x))) +
   scale_fill_grey() + theme_classic() +
   theme(legend.position = "none") +
-  labs(y= "", x = "Quality score")
+  labs(y = "", x = "Quality score")
 ```
 
 ### Assumptions concerning SMD
@@ -179,28 +178,28 @@ ggplot(tip_c, aes(x = c, fill = factor(x))) +
 As previously explained, there are two arrows going from Skills. In the previous section we focused on the arrow $\mathrm{Skills} \rightarrow \mathrm{Qual}$, i.e., setting the $\beta_{\mathrm{Skills}}$ estimate to analyze the size of SMD needed to cancel out the direct causal effect of Lang on Qual. Here we will now do the opposite, i.e., given an SMD, how large a $\beta_{\mathrm{Skills}}$ is needed to cancel out the causal effect of $Lang \rightarrow Qual$.
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center"}
-myDAG <- dagify(
+my_dag <- dagify(
   Lang ~ Skills,
   Qual ~ Skills,
   Qual ~ Lang,
   exposure = "Lang", # treatment
-  outcome = "Qual", 
+  outcome = "Qual",
   coords = list(
     x = c(Lang = 1, Skills = 2, Qual = 3),
     y = c(Lang = 1, Skills = 2, Qual = 1)
   )
 )
 
-ggdag(myDAG) + theme_dag()
+ggdag(my_dag) + theme_dag()
 ```
 
 For the sake of completness we'll assume $\mathrm{SMD} = -2.3$ to validate the result in the previous section, i.e., we should end up with $\beta_{\mathrm{Skills}} \approx 1.5$.
 
 ```{r}
-tidy(withSkills, conf.int=TRUE) |>
-        filter(term == "lang") |>
-        pull(conf.low) |>
-        tip(exposure_confounder_effect = -2.3)
+tidy(with_skills, conf.int = TRUE) |>
+  filter(term == "lang") |>
+  pull(conf.low) |>
+  tip(exposure_confounder_effect = -2.3)
 ```
 
 Above we see that $\beta_{\mathrm{Skills}} \approx 1.50$ (i.e., the confounder_outome_effect), thus we have an indication that this works both ways. Given that we have introduced two distinct concepts used to estimate unobserved/unknown confounders, we can now turn our attention to a more involved example.
@@ -228,39 +227,39 @@ col_labs <- c(
 )
 
 udag <- dagify(
-E ~ BA,
-H ~ BA,
-PL ~ BA,
-S ~ BA,
-E ~ H,
-PL ~ H,
-E ~ L,
-E ~ O,
-L ~ O,
-PL ~ O,
-TS ~ O,
-E ~ PL,
-E ~ PT,
-E ~ S,
-TS ~ S,
-E ~ ST,
-S ~ ST,
-E ~ TS,
-exposure = "TS",
-outcome = "E",
-coords = list(x = c(BA = 1, E = 6, H = 2, PL = 2, S = 4, PT = 4, L = 6, O = 7, TS = 7, ST = 3),
-              y = c(BA = 4, E = 4, H = 3, PL = 1, S = 9, PT = 7, L = 2, O = 1, TS = 9, ST = 6))
+  E ~ BA,
+  H ~ BA,
+  PL ~ BA,
+  S ~ BA,
+  E ~ H,
+  PL ~ H,
+  E ~ L,
+  E ~ O,
+  L ~ O,
+  PL ~ O,
+  TS ~ O,
+  E ~ PL,
+  E ~ PT,
+  E ~ S,
+  TS ~ S,
+  E ~ ST,
+  S ~ ST,
+  E ~ TS,
+  exposure = "TS",
+  outcome = "E",
+  coords = list(x = c(BA = 1, E = 6, H = 2, PL = 2, S = 4, PT = 4, L = 6, O = 7, TS = 7, ST = 3),
+                y = c(BA = 4, E = 4, H = 3, PL = 1, S = 9, PT = 7, L = 2, O = 1, TS = 9, ST = 6))
 )
 
-df <- udag %>% 
-  node_canonical() %>%
+df <- udag |>
+  node_canonical() |>
   mutate(var_labs = var_labs[name], cols = col_labs[name])
 
 ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
   geom_dag_point(mapping = aes(colour = name), show.legend = FALSE) +
   geom_dag_edges() +
   scale_colour_manual(values = df$data$cols) +
-  geom_dag_text(mapping = aes(label = var_labs), parse = TRUE) + 
+  geom_dag_text(mapping = aes(label = var_labs), parse = TRUE) +
   theme_dag()
 ```
 
@@ -285,11 +284,10 @@ col_labs <- c(
   `BA` = "#56B4E9", `H` = "#56B4E9", `PL` = "#56B4E9",
   `L` = "#56B4E9", `O` = "#D55E00", `PT` = "#56B4E9", `S` = "#D55E00",
   `TS` = "#000000", `E` = "#000000", `ST` = "#56B4E9"
-  # orange #D55E00
 )
 
-df <- udag %>% 
-  node_canonical() %>%
+df <- udag |>
+  node_canonical() |>
   mutate(var_labs = var_labs[name], cols = col_labs[name])
 
 ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
@@ -357,25 +355,25 @@ col_labs <- c(
 )
 
 udag <- dagify(
-E ~ BA,
-TS ~ C,
-E ~ C,
-S ~ BA,
-E ~ O,
-TS ~ O,
-E ~ S,
-TS ~ S,
-E ~ ST,
-S ~ ST,
-E ~ TS,
-exposure = "TS",
-outcome = "E",
-coords = list(x = c(BA = 1, C = 6, E = 6, S = 4, O = 7, TS = 7, ST = 3),
-              y = c(BA = 4, C = 7, E = 4, S = 9, O = 1, TS = 9, ST = 6))
+  E ~ BA,
+  TS ~ C,
+  E ~ C,
+  S ~ BA,
+  E ~ O,
+  TS ~ O,
+  E ~ S,
+  TS ~ S,
+  E ~ ST,
+  S ~ ST,
+  E ~ TS,
+  exposure = "TS",
+  outcome = "E",
+  coords = list(x = c(BA = 1, C = 6, E = 6, S = 4, O = 7, TS = 7, ST = 3),
+                y = c(BA = 4, C = 7, E = 4, S = 9, O = 1, TS = 9, ST = 6))
 )
 
-df <- udag %>% 
-  node_canonical() %>%
+df <- udag |>
+  node_canonical() |>
   mutate(var_labs = var_labs[name], cols = col_labs[name])
 
 ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
@@ -399,16 +397,16 @@ In addition to the outcome $E$ and the treatment $TS$, there are several variabl
 The case we have in front of us is the classical case of a confounder affecting both the treatment and the outcome.
 
 ```{r, echo=FALSE, fig.align="center"}
-edgeBasic <- dagify(
-      E ~ TS,
-      E ~ C,
-      TS ~ C,
-      coords = list(
-        x = c(TS = 1, E = 1, C = 0.9),
-        y = c(TS = 2, E = 1, C = 1.5)
-      )
-    )
-    ggdag(edgeBasic) + theme_dag()
+edge_basic <- dagify(
+  E ~ TS,
+  E ~ C,
+  TS ~ C,
+  coords = list(
+    x = c(TS = 1, E = 1, C = 0.9),
+    y = c(TS = 2, E = 1, C = 1.5)
+  )
+)
+ggdag(edge_basic) + theme_dag()
 ```
 
 First, we need to decide on any assumptions concerning the direct effect of $TS$ on $E$. Next, we need to ascertain the effect a confounder must have on $TS$ and $E$ to cancel out that effect (i.e., to make it cross zero according to some credible interval).
@@ -421,48 +419,40 @@ In summary the characteristics of the three variables of interest are:
 
 Let's design a generative model according to the above.
 
-```{r 0th-sim, cache=TRUE, warnings=FALSE, results='hide', message=FALSE}
-# TODO
-# First, vary N so we see if it's worthwhile first!
-#
-# Second, vary SMD and Beta according to x steps in effect size
-#
-# Finally, connect back to implications for the study that will be planned.
-#
-# TODO: Remember to do coeff/(1-coeff) to transform Beta reg coef to OR, before
-# tipping results
+```{r prep-sim, cache=TRUE, warnings=FALSE, results='hide', message=FALSE}
+# This part only sets up our stat model so we can execute it in the sim()
 
-registerDoParallel(detectCores() - 1)
-
-# Set effects
+# Set initial effects
 # Confounder's effect on TS; vary this too c(-1.0, -0.5, 0.0, 0.5, 1.0)
-b_CTS <- 1.0
+b_cts <- 1.0
 # Confounder's effect on outcome; vary this too c(-1.0, -0.5, 0.0, 0.5, 1.0)
-b_C <- 1.3
+b_c <- 1.3
 # TS's effect on outcome; vary this too (-0.5, -0.25, -0.1, 0.1, 0.25, 0.5)
-b_TS <- 0.1
+b_ts <- 0.1
 
-C <- rnorm(100)
-TS <- rpois(100, 5 + b_CTS * C)
-E <- rnorm(100, b_C * C + b_TS * TS)
-df <- data.frame(C = C, TS = TS, E = E)
+c <- rnorm(100)
+ts <- rpois(100, 5 + b_cts * c)
+e <- rnorm(100, b_c * c + b_ts * ts)
+df <- data.frame(C = c, TS = ts, E = e)
 
 # Set weakly informative priors
-# N(0,2) prior on intercept; still ~0.008 prob for absurd, ⍺ = {-5,5}, effects
-# N(0,1) prior on β est; still ~0.005 prob for absurd, β = {-3,3}, effects
-# Exponential(1) on σ; still ~0.005 prob for absurd, σ = 5, effects
+# N(0,2) prior on intercept; still allows for absurd, ⍺ = {-5,5}, effects
+# N(0,1) prior on β est; still allows for absurd, β = {-3,3}, effects
+# Exponential(1) on σ; still allows for absurd, σ = 5, effects
 # Run once so we can reuse model in sim
 m <- brm(E ~ C + TS, data = df, refresh = 0,
   prior = c(prior(normal(0, 1), class = b),
             prior(normal(0, 2), class = Intercept),
             prior(exponential(1), class = sigma))
 )
-
-# Simulate varying sample size `n` and `n_sim`
+```
+```{r func-sim, cache=TRUE, include=FALSE}
+# Simulate varying sample size `n` and `n_sim` with param combinations `g`
 # n A list of integers. Randomly generate `n` number of values.
 # n_sim An integer. Run `n_sim` times to capture stochasticity.
 # g A list from `expand.grid()` with all combinations of β values.
-# returns A numeric vector of size `n_sim` rows and `n` columns.
+# returns A numeric vector of size `g` combinations,  `n_sim` rows, and `n` 
+# columns
 sim <- function(n = 125, n_sim = 200,
                 g = expand.grid(c(-1, 1), c(-1, 1), c(-0.1, 0.1))) {
 
@@ -473,45 +463,50 @@ sim <- function(n = 125, n_sim = 200,
     b_c <- g[i, 2]
     b_ts <- g[i, 3]
 
-    l[[i]] <- foreach(j = n, .combine = cbind) %:%
-      foreach(k = seq_len(n_sim), .combine = c) %dopar% {
-      C <- rnorm(j) # confounder
-      TS <- rpois(j, 5 + b_cts * C) # TS effect is 5
-
-      E <- rnorm(j, b_c * C + b_ts * TS) # E affected by b_TS and b_C
-      d <- data.frame(C = C, TS = TS, E = E)
+    l[[i]] <- foreach(j = n, .combine = cbind) %:% # nolint
+      foreach(k = seq_len(n_sim), .combine = c) %dopar% { # nolint
+      c <- rnorm(j) # confounder # nolint
+      ts <- rpois(j, 5 + b_cts * c) # TS effect is 5 # nolint
+      e <- rnorm(j, b_c * c + b_ts * ts) # E affected by b_TS and b_C # nolint
+      d <- data.frame(C = c, TS = ts, E = e)
       m <- update(m, newdata = d, refresh = 0)
-      fixef(m)[3]
+      fixef(m)[3] # nolint
     }
   }
   return(l)
 }
+```
 
-n <- seq(10, 100, 5) # Sample sizes for the rand() functions
-n_sim <- 200 # number of sim runs
+```{r sim, cache=TRUE, results='hide', message=FALSE, warning=FALSE, error=FALSE}
+# Set up and run simulation
+
+# Sample sizes for the rand() functions
+n <- seq(10, 100, 5)
+
+# number of sim runs; thank you CLT...
+n_sim <- 200
 
 # For β_ts we need to consider an effect size. Generally, for a coefficient β,
-# effect sizes between 0.10–0.29 are said to be only small, effect sizes between
-# 0.30–0.49 are medium, and effect sizes of 0.50 or greater are large.
+# effect sizes between 0.10–0.29 are said to be small, effect sizes between
+# 0.30–0.49 are medium, and effect sizes of 0.50 or greater are large. YMMV
 #
 # Cohen, J. Statistical Power Analysis for the Behavioral Sciences, 2nd ed.;
 # Erlbaum: Hillsdale, MI, USA, 1988; ISBN 0-8058-0283-5.
 # Fey, C.F.; Hu, T.; Delios, A. The Measurement and Communication of Effect
 # Sizes in Management Research. Manag. Organ. Rev. 2022, 1–22.
+
+# 96 effect combinations
 g <- expand.grid(c(-1.0, -0.5, 0.5, 1.0), # β_cts
                  c(-1.0, -0.5, 0.5, 1.0), # β_c
                  c(-0.5, -0.3, -0.1, 0.1, 0.3, 0.5)) # β_ts!
 
+registerDoParallel(detectCores() - 1)
+
 res <- sim(n, n_sim, g)
+
 stopImplicitCluster()
-
-# Average over each column!
-# mean / median / q25/75 l[c(1-9),]
-# Use HPDI 0.5 & 0.9 and save values...
-
-HPDI(res[[1]], prob = 0.95)
 ```
-
+<!-- HPDI(res[[1]][1:200, 1], prob = 0.95) # s=1/96, and all rows from column n=1/19 -->
 
 Next, we need to decide on different effect sizes of $TS \rightarrow E$, and then analyze what size a confounder, $C$, need to be to invalidate those effects. We can safely assume that $TS$ has a positive effect on $E$, i.e., the larger the team, the more effort spent.
 
