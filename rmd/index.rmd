@@ -27,6 +27,7 @@ library(dagitty)
 library(rethinking)
 library(rethinking)
 library(doParallel)
+library(plotly)
 ```
 
 # A first example to build intuition
@@ -159,18 +160,20 @@ However, as an empirical researcher you might not want to bet your life on it if
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center"}
 tip_c <- tibble(x = sample(0:1, n, replace = TRUE)) |>
-  mutate(c = rnorm(n, mean = 45 + (-2.3 * 1.5 * x), sd = 1.5))
+  mutate(qs = rnorm(n, mean = 45 + (-2.3 * 1.5 * x), sd = 1.5))
 
 tip_c_avg <- tip_c |>
   group_by(x) |>
-  summarize(avg = mean(c))
+  summarize(avg = mean(qs))
 
-ggplot(tip_c, aes(x = c, fill = factor(x))) +
+p <- ggplot(tip_c, aes(x = qs, fill = factor(x))) +
   geom_density(alpha = 0.5) +
   geom_vline(data = tip_c_avg, aes(xintercept = avg, color = factor(x))) +
   scale_fill_grey() + theme_classic() +
   theme(legend.position = "none") +
   labs(y = "", x = "Quality score")
+
+ggplotly(p)
 ```
 
 ### Assumptions concerning SMD
@@ -508,6 +511,7 @@ stopImplicitCluster()
 ```
 
 <!-- HPDI(res[[1]][1:200, 1], prob = 0.95) # s=1/96, and all rows from column n=1/19 -->
+<!-- Plotta en metaanalysis för alla plottar -->
 
 Next, we need to decide on different effect sizes of $TS \rightarrow E$, and then analyze what size a confounder, $C$, need to be to invalidate those effects. We can safely assume that $TS$ has a positive effect on $E$, i.e., the larger the team, the more effort spent.
 
