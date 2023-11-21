@@ -425,12 +425,9 @@ Let's design a generative model according to the above.
 ```{r prep-sim, cache=TRUE, warnings=FALSE, results='hide', message=FALSE}
 # This part only sets up our stat model so we can execute it in the sim()
 
-# Set initial effects
-# Confounder's effect on TS; vary this too c(-1.0, -0.5, 0.0, 0.5, 1.0)
+# Set some initial effects; we'll vary this in sim()
 b_cts <- 1.0
-# Confounder's effect on outcome; vary this too c(-1.0, -0.5, 0.0, 0.5, 1.0)
 b_c <- 1.3
-# TS's effect on outcome; vary this too (-0.5, -0.25, -0.1, 0.1, 0.25, 0.5)
 b_ts <- 0.1
 
 c <- rnorm(100)
@@ -511,7 +508,6 @@ stopImplicitCluster()
 ```
 
 <!-- HPDI(res[[1]][1:200, 1], prob = 0.95) # s=1/96, and all rows from column n=1/19 -->
-<!-- Plotta en metaanalysis för alla plottar -->
 
 Next, we need to decide on different effect sizes of $TS \rightarrow E$, and then analyze what size a confounder, $C$, need to be to invalidate those effects. We can safely assume that $TS$ has a positive effect on $E$, i.e., the larger the team, the more effort spent.
 
