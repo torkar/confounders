@@ -1,5 +1,5 @@
 ---
-title: "Replication package"
+title: "Think before you act: The role of simulations in software engineering research"
 output:
   html_document:
     toc: true
@@ -28,6 +28,8 @@ library(rethinking)
 library(rethinking)
 library(doParallel)
 library(plotly)
+library(patchwork)
+library(ggthemes)
 ```
 
 # A first example to build intuition
@@ -136,8 +138,8 @@ If we next look at the other arrow ($\mathrm{Skills} \rightarrow \mathrm{Qual}$)
 
 With these two concepts, the SMD and the $\beta_{\mathrm{Skills}}$ estimate, we can now add assumptions to our analysis and argue how likely it is that they would hold. According to @linPK98sens we now have three options to choose between:
 
-* Make assumptions concerning $\beta_{\mathrm{Skills}}$, and estimate how large SMD needs to be to cancel out the direct effect of Lang on Qual.
-* Make assumptions concerning SMD, and estimate how large $\beta_{\mathrm{Skills}}$ needs to be to cancel out the direct effect of Lang on Qual.
+* Make assumptions concerning $\beta_{\mathrm{Skills}}$ and estimate how large SMD needs to be to cancel out the direct effect of Lang on Qual.
+* Make assumptions concerning SMD and estimate how large $\beta_{\mathrm{Skills}}$ needs to be to cancel out the direct effect of Lang on Qual.
 * Finally, by specifying both SMD and $\beta_{\mathrm{Skills}}$ we can investigate the number and size of confounders, $n_c$, needed to cancel out the direct effect of Lang on Qual.
 
 We will focus on the first two analyses, since they are more common.
@@ -268,7 +270,7 @@ ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
 
 @feldtSFT23sysrev extracted causal links from several primary studies and attempted to assemble disparate evidence into a Unified Directed Acyclic Graph (UDAG) as above. In the UDAG above the letters are, from left to right, short for: $BA$ Business Area, $PL$ Programming Language, $H$ Hardware, $ST$ Software Type, $PT$ Project Type, $S$ Size of software, $L$ Location, $E$ Effort, $O$ Organization type, and $TS$ Team Size. 
 
-We'd like to know the direct effect of $TS$ on $E$ (both in <span style="background-color: black;color: white;">black</span>), i.e., Team Size's direct effect on Effort. One would think it's a straightforward thing to measure, but not taking into account confounders would lead to biased estimates, i.e., spurious associations.
+We'd like to know the direct effect of $TS$ on $E$ (both in <span style="background-color: black;color: white;">black</span>), i.e., Team Size's direct effect on Effort. One would think it's a straightforward thing to measure, but not taking into account confounders would lead to biased estimates, i.e., due to spurious associations.
 
 The UDAG, as we will see, will also help us understand if a sensitivity analysis of unknown confounders is needed. In short, it would allow a future study to either be more sure of not facing omitted variable bias from start, i.e., the UDAG is likely correct, or force us to collect variables that are currently unmeasured, i.e., the UDAG needs to be complemented with new variables.
 
@@ -335,11 +337,11 @@ In Case 1 (**n/a**), a confounder would not affect the possibility for us to rec
 
 If we next analyze what it would imply if an unknown confounder truly existed at each of the above edges, while we condition on $S$ and $O$, we quickly see that there are only two edges that we need to be careful about: Edges #17 and #18.
 
-Edge #17 is a bit tricky. If there would be a confounder between $S$ and $TS$, i.e., $S \leftarrow C \rightarrow TS$ (in addition to Edge #17), it would bias the estimate. However, in this particular case we don't have to see it as a case of omitted variable bias (Case #3 above), since if we condition on $BA$ *and* $ST$, we would close those paths and still be able to get an unbiased estimate of the direct effect of $TS$ on $E$. In short, this is case of **ovb** as explained above.
+Edge #17 is a bit tricky. If there would be a confounder between $S$ and $TS$, i.e., $S \leftarrow C \rightarrow TS$ (in addition to Edge #17), it would bias the estimate. However, in this particular case we don't have to see it as a case of omitted variable bias (Case #3 above), since if we condition on $BA$ *and* $ST$, we would close those paths and still be able to get an unbiased estimate of the direct effect of $TS$ on $E$. In short, this is a case of **co** as explained above.
 
 Edge #18, however, is more serious. A confounder between $TS$ and $E$, i.e., $TS \leftarrow C \rightarrow E$ (in addition to Edge #19), would bias our estimate. This is a clear case of omitted variable bias (i.e., **ovb**), since we can't solve it by conditioning on any other variables. In short, if such an unknown/unmeasured confounder exists, we'd be toast.
 
-Below is an updated UDAG where we mark all variables that we condition on in orange, the confounder is in <span style="background-color: #F0E442;color: white;">yellow</span>, while the outcome and treatment are in black. Other variables that we have no use for are now removed from the plot and futher analysis. 
+Below is an updated UDAG where we mark all variables that we condition on in orange, the confounder is in <span style="background-color: #F0E442;color: white;">yellow</span>, while the outcome and treatment are in black. Other variables that we have no use for are now removed from the plot and further analysis. Already this step has clarified that there are a number of variables that we don't have to collect.
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center"}
 var_labs <- c(
@@ -391,13 +393,13 @@ Evidently, we see that we condition on more variables than $S$ and $O$ (which wa
 
 How did we come to the results above? Well, analyzing the UDAG according to causal calculus [@pearl09reason] leads to the above results and with experience one receives intuition when analyzing DAGs. However, one can (should) also use software to get some assistance, e.g., the [dagitty](https://dagitty.net) package in R. If you are so inclined you can verify [online](http://dagitty.net/mLQZroN) that our analysis above is correct.
 
-To summarize, we have a challenge dealing with a confounder $C$, which affects both our treatment $TS$ and the outcome $E$, i.e., $TS \leftarrow C \rightarrow E$. Perhaps a researcher could swear that such a confounder cannot physically exist for the studied phenomena, but if one is not 100% sure, then we should do better and fall back on sensitivity analysis of unknown confounders.
+To summarize, we have a challenge dealing with a confounder $C$, which affects both our treatment $TS$ and the outcome $E$, i.e., $TS \leftarrow C \rightarrow E$. Perhaps a researcher could swear that such a confounder cannot physically exist for the studied phenomena, but if one is not 100% sure, then we should do better and fall back on sensitivity analysis of unknown confounders. Before we do that, we need to set som assumptions about the effect size we are expecting. How large a direct effect could we anticipate, and is it likely that we can estimate that effect given a certain sample size?
 
-## Sensitivity analysis of unknown confounders
+## Establishing relevant effect sizes
 
 In addition to the outcome $E$ and the treatment $TS$, there are several variables we've decided to control (adjust) for, i.e., $\mathcal{A} = \{ S, O, ST, BA \}$ (the latter two so that any confounder between $S$ and $TS$ is cancelled out). 
 
-The case we have in front of us is the classical case of a confounder affecting both the treatment and the outcome.
+Ultimately, the case we have in front of us is the classical case of a confounder affecting both the treatment and the outcome.
 
 ```{r, echo=FALSE, fig.align="center"}
 edge_basic <- dagify(
@@ -412,46 +414,49 @@ edge_basic <- dagify(
 ggdag(edge_basic) + theme_dag()
 ```
 
-First, we need to decide on any assumptions concerning the direct effect of $TS$ on $E$. Next, we need to ascertain the effect a confounder must have on $TS$ and $E$ to cancel out that effect (i.e., to make it cross zero according to some credible interval).
+First priority is to decide on any assumptions concerning the direct effect of $TS$ on $E$, e.g., what sample sizes do we need, in order to see 'signficant effects.' The second priority is that, once we believe that an effect can be found (given our sample size), we need to ascertain the effect a confounder must have on $TS$ and $E$ to cancel out that effect (i.e., to make it cross zero according to some credible interval).
 
-In summary the characteristics of the three variables of interest are:
+Let's start with the former priority. If we discover that we can't find a relevant effect because won't be able to collect a large enough number of data points, then it might not be worthwhile to even design a study in the first place, i.e., a statistical power analysis in the traditional sense.
+
+Let's start this by summarizing the characteristics of the three variables of interest are:
 
 * Team Size ($TS$), treatment: $\mathbb{N}^+$, a natural positive number indicating number of members in a team.
 * Effort ($E$), outcome: $\mathbb{N}^+$, a natural positive number indicating hours spent in a project.
 * Confounder ($C$): Assume $\mathbb{R}$, i.e., a $\mathsf{Normal}$ distribution.
 
-Let's design a generative model according to the above.
+and then design a generative model according to the above characteristics and the DAG.
 
 ```{r prep-sim, cache=TRUE, warnings=FALSE, results='hide', message=FALSE}
 # This part only sets up our stat model so we can execute it in the sim()
 
-# Set some initial effects; we'll vary this in sim()
+# Just set some initial effects; we'll vary this in sim() anyway
 b_cts <- 1.0
 b_c <- 1.3
 b_ts <- 0.1
 
+# Our generative model
 c <- rnorm(100)
-ts <- rpois(100, 5 + b_cts * c)
-e <- rnorm(100, b_c * c + b_ts * ts)
+ts <- rpois(100, 5 + b_cts * c) # Confounder, c, affects TeamSize, ts
+e <- rnorm(100, b_c * c + b_ts * ts) # Outcome E is affected by ts and c!
 df <- data.frame(C = c, TS = ts, E = e)
 
 # Set weakly informative priors
 # N(0,2) prior on intercept; still allows for absurd, ⍺ = {-5,5}, effects
 # N(0,1) prior on β est; still allows for absurd, β = {-3,3}, effects
 # Exponential(1) on σ; still allows for absurd, σ = 5, effects
-# Run once so we can reuse model in sim
+# Run once so we can reuse model in sim()
 m <- brm(E ~ C + TS, data = df, refresh = 0,
   prior = c(prior(normal(0, 1), class = b),
             prior(normal(0, 2), class = Intercept),
             prior(exponential(1), class = sigma))
 )
 ```
-```{r func-sim, cache=TRUE, include=FALSE}
+```{r func-sim, cache=TRUE}
 # Simulate varying sample size `n` and `n_sim` with param combinations `g`
 # n A list of integers. Randomly generate `n` number of values.
 # n_sim An integer. Run `n_sim` times to capture stochasticity.
 # g A list from `expand.grid()` with all combinations of β values.
-# returns A numeric vector of size `g` combinations,  `n_sim` rows, and `n` 
+# returns A numeric vector of size `g` combinations,  `n_sim` rows, and `n`
 # columns
 sim <- function(n = 125, n_sim = 200,
                 g = expand.grid(c(-1, 1), c(-1, 1), c(-0.1, 0.1))) {
@@ -495,11 +500,11 @@ n_sim <- 200
 # Fey, C.F.; Hu, T.; Delios, A. The Measurement and Communication of Effect
 # Sizes in Management Research. Manag. Organ. Rev. 2022, 1–22.
 
-# 96 effect combinations
 g <- expand.grid(c(-1.0, -0.5, 0.5, 1.0), # β_cts
                  c(-1.0, -0.5, 0.5, 1.0), # β_c
-                 c(-0.5, -0.3, -0.1, 0.1, 0.3, 0.5)) # β_ts!
+                 c(0.1, 0.3, 0.5)) # β_ts! Assume positive effect
 
+# 48 effect combinations x 19 diff sizes of samples x 200 sims = 182,400
 registerDoParallel(detectCores() - 1)
 
 res <- sim(n, n_sim, g)
@@ -507,8 +512,117 @@ res <- sim(n, n_sim, g)
 stopImplicitCluster()
 ```
 
-<!-- HPDI(res[[1]][1:200, 1], prob = 0.95) # s=1/96, and all rows from column n=1/19 -->
+```{r plotsPrep}
+# bail if no data exists
+stopifnot(res[[1]] != TRUE)
 
-Next, we need to decide on different effect sizes of $TS \rightarrow E$, and then analyze what size a confounder, $C$, need to be to invalidate those effects. We can safely assume that $TS$ has a positive effect on $E$, i.e., the larger the team, the more effort spent.
+# create df instead of list
+res_d <- data.frame(res)
+
+# remove column names
+names(res_d) <- NULL
+
+# create a data frame d[912 x 7]
+# n_id = the 19 sample sizes repeated {10,15,...,100} x 48
+# s_id = each param setting (48) was repeated with 19 diff sample sizes
+#   {1,1,...,1} {2,2,...,2} ... {48,48,...,48}
+# mu = mean of each param estimated by HMC
+# low50 = 50% highest posterior density (low)
+# high50 = 50% highest posterior density (high)
+# low95 = 95% highest posterior density (low)
+# high95 = 95% highest posterior density (high)
+# b_cts = setting for β_cts parameter
+# b_c = setting for β_c parameter (confounder)
+# b_ts = setting for β_ts parameter (outcome)
+d <- data.frame(
+  n_id  = rep(n, length(res)),
+  s_id  = rep(seq_along(res), each = ncol(res[[1]])),
+  mu = apply(res_d, 2, mean),
+  low50 = apply(res_d, 2, function(x) HPDI(x, prob = 0.5)[1]),
+  high50 = apply(res_d, 2, function(x) HPDI(x, prob = 0.5)[2]),
+  low95 = apply(res_d, 2, function(x) HPDI(x, prob = 0.95)[1]),
+  high95 = apply(res_d, 2, function(x) HPDI(x, prob = 0.95)[2]),
+  b_cts = rep(g[, 1], each = ncol(res[[1]])),
+  b_c = rep(g[, 2], each = ncol(res[[1]])),
+  b_ts = rep(g[, 3], each = ncol(res[[1]]))
+)
+
+s <- seq(1, 912, 19)
+
+l <- list()
+
+for (i in s){
+  j <- eval(i) + 18
+
+  l[[eval(i)]] <- ggplot(data = d[eval(i):j, ], aes(x = n_id, y = mu)) +
+    geom_line() +
+    geom_ribbon(aes(x = n_id, ymin = low50, ymax = high50), alpha = 0.15) +
+    geom_ribbon(aes(x = n_id, ymin = low95, ymax = high95), alpha = 0.1) +
+    geom_hline(yintercept = 0, linewidth = 0.3) +
+    geom_hline(yintercept = d[eval(i), 10], linewidth = 0.25,
+               color = "#D55E00") +
+    ylab(expression(beta[ts])) +
+    xlab(as.expression(bquote("{" * beta[ts] ~ "=" ~
+                                .(d[eval(i), 10]) * ";" ~ beta[cts] ~ "=" ~
+                                .(d[eval(i), 8]) * ";" ~ beta[c] ~ "=" ~
+                                .(d[eval(i), 9]) * "}"))) +
+    scale_x_continuous(breaks = seq(20, 100, 20)) +
+    theme_tufte()
+}
+```
+
+```{r plotsI, echo=FALSE, fig.dim = c(10, 8), fig.cap = "**Main plot: Small effect**"}
+(l[[1]] | l[[20]] | l[[39]] | l[[58]]) /
+  (l[[77]] | l[[96]] | l[[115]] | l[[134]]) /
+  (l[[153]] | l[[172]] | l[[191]] | l[[210]]) /
+  (l[[229]] | l[[248]] | l[[267]] | l[[286]])
+```
+
+```{r plotsII, echo=FALSE, fig.dim = c(10, 8), fig.cap = "**Main plot: Medium effect**"}
+(l[[305]] | l[[324]] | l[[343]] | l[[362]]) /
+  (l[[381]] | l[[400]] | l[[419]] | l[[438]]) /
+  (l[[457]] | l[[476]] | l[[495]] | l[[514]]) /
+  (l[[533]] | l[[552]] | l[[571]] | l[[590]])
+```
+
+```{r plotsIII, echo=FALSE, fig.dim = c(10, 8), fig.cap = "**Main plot: Large effect**"}
+(l[[609]] | l[[628]] | l[[647]] | l[[666]]) /
+  (l[[685]] | l[[704]] | l[[723]] | l[[742]]) /
+  (l[[761]] | l[[780]] | l[[799]] | l[[818]]) /
+  (l[[837]] | l[[856]] | l[[875]] | l[[894]])
+```
+
+So what is the point with the above plots? As one can see (open the top image in its own window so you can alternate with the text), we have decided to fix the true effect to $\beta_{ts} = 0.1$ for all individual subplots (in the other two main plots we set $\beta_{ts} = \{0.3, 0.5\}$). The assumption is that we are expecting a small, medium, or large direct causal effect of $TS$ on $E$. For each of the main plots we then also vary the other effects (i.e., $\beta_{c}$ and $\beta_{cts}$) exhaustively:
+
+```{r}
+expand.grid(b_c = c(-1, -0.5, 0.5, 1), b_cts = c(-1, -0.5, 0.5, 1))
+```
+
+The $y$-axis in each subplot then depicts the estimated $\beta_{ts}$ effect, while the $x$-axis depicts the sample sizes, i.e., in the simulation we used $N=\{10, 15, \ldots, 100\}$. Having more than $100$ companies participating in a study is perhaps not realistic, and many would say that already having more than $20$ participating would be above expectations...
+
+Still focusing on the main top plot, in each individual subplot we see the estimate of $\beta_{ts}$ (after 200 simulations), which is the somewhat wiggly black line moving around the red line. The red line is the ground truth, i.e., $\beta_{ts} = \{0.1\}$ in this case. The shaded areas are then the uncertainty around the estimated $\beta_{ts}$. The darker shade is the $50$% highest posterior density estimate (you can see it as a confidence interval, but in this case it actually works the way you think). The lighter shade is the commonly used $95$%-level we see being used to claim 'significance.'
+
+If we first take a helicopter view of all subplots we see a few things immediately.
+
+0. **We can recover the ground truth.** The wiggly black line converges around the red line quickly as we increase the sample size. That, in itself, is an indication that our model represents the underlying data generation process well. I would even claim: Spectacularly well.
+1. All subplots are very similar. This is the only reason for plotting all these plots, i.e., to visualize all the combinations and see the similarity. In short, **we don't have to worry about the other effects affecting the direct causal effect of interest**, no matter the sign or magnitude of the other effects. It's simply reassuring, but given causal calculus, it should not be surprising.
+2. All subplots show (wiggly black line) that the estimate is not close to the ground truth (red line) in small sample sizes. However, already **when we get close to $20$-$30$ samples it starts to stabilize** around the ground truth. Thank you Central Limit Theorem.
+3. **All subplots start with much uncertainty around the estimate due to small sample sizes.** If we examine the top main plot we see that the shade (light or even the dark) crosses $0$ very much at the beginning, i.e., this is an effect we would have a hard time to uncover due to a small sample size. When the direct causal effect is small and we have small sample sizes, chances of us finding a significant result is slim to none. If we find an effect it will simply be pure luck.
+4. **Even when we have large sample sizes it's questionable if we would uncover a small effect**, i.e., $\beta_{ts} = 0.1$. This is indicated by the shaded area almost always crossing the $0$ line even at large sample sizes.
+
+Before looking at the middle main plot, let's first look at the third (last) main plot, i.e., where $\beta_{ts}=0.5$. It's evident that since the effect is so large (i.e., $0.5$ instead of $0.1$) we keep clear of $0$ even at the smallest sample size, i.e., $N=10$. However, what we should ask ourselves is: How likely is it that the phenomenon we are studying would show such a strong effect? Perhaps not very likely...
+
+Let's now look at the middle plot, i.e., $\beta_{ts} = 0.3$. Here it's also evident that once we come up to $N \approx 20$ we are in the clear. We will be able to uncover such an effect size, since the uncertainty (shaded area) does not cross $0$.
+
+All the above indicates strongly that if we expect a small effect, which is common in much science, then we might as well forget about designing a study and save us, and any participating companies, time and resources. However, if we expect a large effect, then we could get away with a very small sample size, i.e., perhaps even $N=10$. But, is it likely that there exists such a strong effect? Perhaps not. Finally, a more realistic case would be a medium effect, if there is an effect at all. We can actually uncover such an effect if we move up to $N \approx 20$.
+
+Nonetheless, all is not joy. As researchers we work under certain assumptions. One such assumption in our case is that our DAG is a correct representation of reality. What if it's not? We need to ascertain the effect a confounder must have on $TS$ and $E$ to cancel out that effect (i.e., to make it cross zero according to some credible interval):
+
+* Make assumptions concerning the confounder (which is unknown or unmeasured) and estimate how large SMD needs to be to cancel out the direct effect (0.3) of $TS$ on $E$.
+* Make assumptions concerning SMD and estimate how large the confounder (which is unknown or unmeasured) needs to be to cancel out the direct effect (0.3) of $TS$ on $E$.
+
+Let's do that.
+
+## Sensitivity analysis of unknown confounders
 
 # References
