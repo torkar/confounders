@@ -1,7 +1,7 @@
 ---
 title: "Think before you act: The role of simulations in software engineering research"
 output:
-  html_document:
+  bookdown::html_document2:
     toc: true
     toc_float: true
     fig_caption: true
@@ -144,7 +144,7 @@ With these two concepts, the SMD and the $\beta_{\mathrm{Skills}}$ estimate, we 
 
 We will focus on the first two analyses, since they are more common.
 
-### Assumptions concerning $\beta_{\mathrm{Skills}}$
+### Assumptions concerning $\beta_{\mathrm{Skills}}$ {#assumptions-beta}
 If we continue with the example, we can collect the true effect's lower confidence interval ($\approx 0.4$) and assume $\beta_{\mathrm{Skills}} = 1.5$, i.e., a 1-unit change in Skills would imply a 1.5-unit change in Qual:
 
 ```{r}
@@ -595,27 +595,27 @@ for (i in s){
   (l[[837]] | l[[856]] | l[[875]] | l[[894]])
 ```
 
-So what is the point with the above plots? As one can see (open the top image in its own window so you can alternate with the text), we have decided to fix the true effect to $\beta_{ts} = 0.1$ for all individual subplots (in the other two main plots we set $\beta_{ts} = \{0.3, 0.5\}$). The assumption is that we are expecting a small, medium, or large direct causal effect of $TS$ on $E$. For each of the main plots we then also vary the other effects (i.e., $\beta_{c}$ and $\beta_{cts}$) exhaustively:
+So what is the point with the above plots? As one can see (open the top image in its own window so you can alternate with the text), we have decided to fix the true effect to $\beta_{ts} = 0.1$ for all individual subplots (in the other two main plots we set $\beta_{ts} = \{0.3, 0.5\}$). The assumption is that we are expecting a small, medium, or large direct causal effect of $TS$ on $E$. For each of the main plots we then also vary the other effects (i.e., $\beta_{c}$ and $\beta_{cts}$):
 
 ```{r}
 expand.grid(b_c = c(-1, -0.5, 0.5, 1), b_cts = c(-1, -0.5, 0.5, 1))
 ```
 
-The $y$-axis in each subplot then depicts the estimated $\beta_{ts}$ effect, while the $x$-axis depicts the sample sizes, i.e., in the simulation we used $N=\{10, 15, \ldots, 100\}$. Having more than $100$ companies participating in a study is perhaps not realistic, and many would say that already having more than $20$ participating would be above expectations...
+The $y$-axis in each subplot then depicts the estimated $\beta_{ts}$ effect, while the $x$-axis depicts the sample sizes, i.e., in the simulation we used $N=\{10, 15, \ldots, 100\}$. Having $100$ companies participating in a study is perhaps not realistic, and many would say that already having more than $20$ participating would be above expectations$\ldots$
 
-Still focusing on the main top plot, in each individual subplot we see the estimate of $\beta_{ts}$ (after 200 simulations), which is the somewhat wiggly black line moving around the red line. The red line is the ground truth, i.e., $\beta_{ts} = \{0.1\}$ in this case. The shaded areas are then the uncertainty around the estimated $\beta_{ts}$. The darker shade is the $50$% highest posterior density estimate (you can see it as a confidence interval, but in this case it actually works the way you think). The lighter shade is the commonly used $95$%-level we see being used to claim 'significance.'
+Still focusing on the main top plot, in each individual subplot we see the estimate of $\beta_{ts}$ (after $200$ simulations), which is the somewhat wiggly black line moving around the red line. The red line is the ground truth, i.e., $\beta_{ts} = 0.1$ in this case. The shaded areas are then the uncertainty around the estimated $\beta_{ts}$. The darker shade is the $50$% highest posterior density estimate (you can see it as a confidence interval, but in this case it actually works the way you think). The lighter shade is the commonly used $95$%-level we see being used to claim 'significance.'
 
 If we first take a helicopter view of all subplots we see a few things immediately.
 
 0. **We can recover the ground truth.** The wiggly black line converges around the red line quickly as we increase the sample size. That, in itself, is an indication that our model represents the underlying data generation process well. I would even claim: Spectacularly well.
-1. All subplots are very similar. This is the only reason for plotting all these plots, i.e., to visualize all the combinations and see the similarity. In short, **we don't have to worry about the other effects affecting the direct causal effect of interest**, no matter the sign or magnitude of the other effects. It's simply reassuring, but given causal calculus, it should not be surprising.
-2. All subplots show (wiggly black line) that the estimate is not close to the ground truth (red line) in small sample sizes. However, already **when we get close to $20$-$30$ samples it starts to stabilize** around the ground truth. Thank you Central Limit Theorem.
-3. **All subplots start with much uncertainty around the estimate due to small sample sizes.** If we examine the top main plot we see that the shade (light or even the dark) crosses $0$ very much at the beginning, i.e., this is an effect we would have a hard time to uncover due to a small sample size. When the direct causal effect is small and we have small sample sizes, chances of us finding a significant result is slim to none. If we find an effect it will simply be pure luck.
-4. **Even when we have large sample sizes it's questionable if we would uncover a small effect**, i.e., $\beta_{ts} = 0.1$. This is indicated by the shaded area almost always crossing the $0$ line even at large sample sizes.
+1. All subplots are very similar. This is the only reason for plotting all these plots, i.e., to visualize all the combinations and see the similarity. In short, **we don't have to worry about the other effects affecting the direct causal effect of interest**, no matter the sign or magnitude of the other effects. It's reassuring, but given causal calculus, it should not be surprising.
+2. All subplots show (wiggly black line) that the estimate is not close to the ground truth (red line) in small sample sizes. However, already when we get close to $20$&ndash;$30$ samples **the estimate starts to stabilize around the ground truth**. Thank you Central Limit Theorem.
+3. **All subplots start with much uncertainty around the estimate due to small sample sizes.** If we examine the top main plot we see that the shade (light or even the dark) crosses zero very much at the beginning, i.e., this is an effect we would have a hard time to uncover due to a small sample size. When the direct causal effect is small and we have small sample sizes, chances of us finding a significant result is slim to none. If we find an effect it will simply be pure luck.
+4. **Even when we have large sample sizes it's questionable if we would uncover a small effect**, i.e., $\beta_{ts} = 0.1$. This is indicated by the shaded area almost always crossing zero, even at large sample sizes.
 
 Before looking at the middle main plot, let's first look at the third (last) main plot, i.e., where $\beta_{ts}=0.5$. It's evident that since the effect is so large (i.e., $0.5$ instead of $0.1$) we keep clear of $0$ even at the smallest sample size, i.e., $N=10$. However, what we should ask ourselves is: How likely is it that the phenomenon we are studying would show such a strong effect? Perhaps not very likely...
 
-Let's now look at the middle plot, i.e., $\beta_{ts} = 0.3$. Here it's also evident that once we come up to $N \approx 20$ we are in the clear. We will be able to uncover such an effect size, since the uncertainty (shaded area) does not cross $0$.
+Let's now look at the middle plot, i.e., $\beta_{ts} = 0.3$. Here it's evident that once we come up to $N \approx 20$ we are in the clear. We will be able to uncover such an effect size, since the uncertainty (shaded area) does not cross zero.
 
 All the above indicates strongly that if we expect a small effect, which is common in much science, then we might as well forget about designing a study and save us, and any participating companies, time and resources. However, if we expect a large effect, then we could get away with a very small sample size, i.e., perhaps even $N=10$. But, is it likely that there exists such a strong effect? Perhaps not. Finally, a more realistic case would be a medium effect, if there is an effect at all. We can actually uncover such an effect if we move up to $N \approx 20$.
 
@@ -663,14 +663,82 @@ ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
   scale_colour_manual(values = df$data$cols) +
   geom_dag_text(mapping = aes(label = var_labs), parse = TRUE) +
   geom_text(x = 2, y = 1.04, size = 6,
-            label = as.character(expression(paste(beta[ts], "=0.3"))),
+            label = as.character(expression(paste(italic(β)[ts], "=0.3"))),
+            parse = TRUE) +
+  geom_text(x = 2.65, y = 1.5, size = 6,
+            label = as.character(expression(paste(italic(β)[ce], "=?"))),
+            parse = TRUE) +
+  geom_text(x = 1.3, y = 1.5, size = 6,
+            label = as.character(expression(paste("SMD=?"))),
             parse = TRUE) +
   theme_dag()
 ```
 
+Next, we need to set assumptions concerning the effect an unknown confounder, $C$, has on the outcome $E$ (i.e., the $\beta_{ce}$ effect for $C \rightarrow E$) **or** we need to set assumptions concerning how the confounder, $C$, affects the treatment $TS$ by using the Scaled Mean Difference (i.e., SMD for $C \rightarrow TS$).
 
-Next, we need to set assumptions concerning the effect an unknown confounder has on the outcome $E$ (i.e., $\beta$ effect for $C \rightarrow E$) **or** we need to set assumptions concerning how the confounder affects the treatment $TS$ by using the Scaled Mean Difference (i.e., SMD for $C \rightarrow TS$).
+A first step could be to step through $\beta_{ce}$ values, given $\beta_{ts} = 0.1$, and see what this implies for $\mathrm{SMD}$.
 
-Step through a number of beta effects 0.2,..., 0.4, and plot beta vs. SMD.
+```{r, echo=FALSE, message=FALSE}
+palette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+             "#0072B2", "#D55E00", "#CC79A7")
+
+b_ts <- 0.1
+b_ce <- seq(-0.3, 0.3, 0.001)
+
+tip_coef(b_ts, confounder_outcome_effect = b_ce, verbose = FALSE) |>
+  filter_all(all_vars(!is.infinite(.))) |>
+  ggplot(aes(x = confounder_outcome_effect,
+             y = exposure_confounder_effect)) +
+  geom_line(linewidth = 1) +
+  xlab(expression(italic(β)[ce])) +
+  ylab("SMD") +
+  theme_minimal()
+```
+
+On the vertical axis $\mathrm{SMD}$ is plotted, while on the horizontal axis, the effect the confounder has on the outcome ($\beta_{ce}$), is plotted. What we see is that the closer to zero $\beta_{ce}$ comes, the higher (or lower) $\mathrm{SMD}$ needs to be to cancel out (or tip) the estimated effect. This is logical, since if $\beta_{ce}$ is very small, $\mathrm{SMD}$ needs to compensate to cancel out the estimated effect (in a postitive or negative fashion).
+
+Next, let's simply step through $\beta_{ce}$ effects between $0.1$ to $0.5$, and plot them to look at what this implies concerning $\mathrm{SMD}$. We will also plot several hypothetical $\beta_{ts}$ effects, not only the assumed $\beta_{ts} = 0.3$.
+
+```{r, echo=FALSE, message=FALSE}
+# We assume β = 0.3, but can't hurt varying the size
+es <- seq(0.2, 0.4, 0.05)
+
+# Since we can't know if β_ce has pos or neg sign we try both
+ce_neg <- seq(-0.50, -0.10, 0.01)
+ce_pos <- seq(0.10, 0.50, 0.01)
+
+p1 <- tip_coef(es, confounder_outcome_effect = ce_pos, verbose = FALSE) |>
+  mutate(effect_observed = as.factor(effect_observed)) |>
+  ggplot(aes(x = confounder_outcome_effect,
+             y = exposure_confounder_effect,
+             color = effect_observed)) +
+  geom_line(linewidth = 1) +
+  scale_colour_manual(values = palette) +
+  annotate(geom = "point", x = 0.2, y = 1.5, colour = "#CC79A7", size = 4) +
+  xlab(expression(italic(β)[ce])) +
+  ylab("SMD") +
+  theme_minimal() +
+  guides(color = guide_legend(reverse = TRUE)) +
+  labs(color = expression(italic(β)[ts]))
+
+p2 <- tip_coef(es, confounder_outcome_effect = ce_neg, verbose = FALSE) |>
+  mutate(effect_observed = as.factor(effect_observed)) |>
+  ggplot(aes(x = confounder_outcome_effect,
+             y = exposure_confounder_effect,
+             color = effect_observed)) +
+  geom_line(linewidth = 1) +
+  scale_colour_manual(values = palette) +
+  xlab("") +
+  ylab("") +
+  theme_classic() +
+  theme(legend.position = "none")
+
+p1 + annotation_custom(ggplotGrob(p2), xmin = 0.27, xmax = 0.50,
+                       ymin = 2, ymax = 4)
+```
+
+Focus first on the main plot and not the inset. What the plot is trying to convey is that if we have, e.g., $\beta_{ce} = 0.2$, that is, the confounder's effect on the outcome, then the effect the treatment has on the outcome, i.e., the blue line representing $\beta_{ts} = 0.3$, **would be cancelled out** if we observe $\mathrm{SMD} \geq 1.5$ (indicated by the purple circle). 
+
+In summary, if we assume $\sigma = 1.5$, it would imply that a change in the outcome would be $1.5^2 = 2.25$ units. The inset then shows the reverse, i.e., where assume a negative effect of $\beta_{ce}$.
 
 # References
