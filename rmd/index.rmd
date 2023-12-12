@@ -252,8 +252,10 @@ udag <- dagify(
   E ~ TS,
   exposure = "TS",
   outcome = "E",
-  coords = list(x = c(BA = 1, E = 6, H = 2, PL = 2, S = 4, PT = 4, L = 6, O = 7, TS = 7, ST = 3),
-                y = c(BA = 4, E = 4, H = 3, PL = 1, S = 9, PT = 7, L = 2, O = 1, TS = 9, ST = 6))
+  coords = list(x = c(BA = 1, E = 6, H = 2, PL = 2, S = 4, PT = 4, L = 6, O = 7,
+                      TS = 7, ST = 3),
+                y = c(BA = 4, E = 4, H = 3, PL = 1, S = 9, PT = 7, L = 2, O = 1,
+                      TS = 9, ST = 6))
 )
 
 df <- udag |>
@@ -677,7 +679,7 @@ To move forward in this matter, we need to set assumptions concerning the effect
 
 A first step could be to step through $\beta_{ce}$ values, e.g., given $\beta_{ts} = 0.1$, and see what this implies for $\mathrm{SMD}$.
 
-```{r, echo=FALSE, message=FALSE}
+```{r, echo=FALSE, message=FALSE, fig.align="center"}
 palette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
              "#0072B2", "#D55E00", "#CC79A7")
 
@@ -694,11 +696,11 @@ tip_coef(b_ts, confounder_outcome_effect = b_ce, verbose = FALSE) |>
   theme_minimal()
 ```
 
-On the vertical axis $\mathrm{SMD}$ is plotted, while on the horizontal axis, the effect the confounder has on the outcome ($\beta_{ce}$), is plotted. What we see is that the closer to zero $\beta_{ce}$ comes, the higher (or lower) $\mathrm{SMD}$ needs to be to cancel out (or tip) the estimated effect. This is logical, since if $\beta_{ce}$ is very small, $\mathrm{SMD}$ needs to compensate to cancel out the estimated effect (with a large scaled, positive or negative, mean difference).
+On the vertical axis $\mathrm{SMD}$ is plotted, while on the horizontal axis, the effect the confounder has on the outcome ($\beta_{ce}$), is plotted. What we see is that the closer to zero $\beta_{ce}$ comes, the higher (or lower) $\mathrm{SMD}$ needs to be to cancel out (or tip) the estimated effect. This is logical, since if $\beta_{ce}$ is very small, $\mathrm{SMD}$ needs to compensate to cancel out the estimated effect (with a large, positive or negative, scaled mean difference).
 
 Let's simply step through some effects that might be relevant for us, i.e., $\beta_{ce}$ effects between $0.1$ to $0.5$, and plot them to look at what this implies concerning $\mathrm{SMD}$. We will also plot several hypothetical $\beta_{ts}$ effects, not only the assumed $\beta_{ts} = 0.3$.
 
-```{r, echo=FALSE, message=FALSE}
+```{r, echo=FALSE, message=FALSE, fig.align="center"}
 # We assume β = 0.3, but can't hurt varying the size
 es <- seq(0.2, 0.4, 0.05)
 
@@ -736,8 +738,8 @@ p1 + annotation_custom(ggplotGrob(p2), xmin = 0.27, xmax = 0.50,
                        ymin = 2, ymax = 4)
 ```
 
-Focus first on the main plot and not the inset. What the plot is trying to convey is that if, e.g., $\beta_{ce} = 0.2$, that is, the confounder's effect on the outcome, then the effect the treatment has on the outcome, i.e., the blue line representing $\beta_{ts} = 0.3$, **would be cancelled out** if we observe $\mathrm{SMD} \geq 1.5$ (indicated by the purple circle). (The inset then shows the inverse, i.e., assuming that $\beta_{ce}$ is negative.)
+Focus first on the main plot and not the inset. What the plot is trying to convey is that if, e.g., $\beta_{ce} = 0.2$, that is, the confounder's effect on the outcome, then the effect the treatment has on the outcome, i.e., the blue line representing $\beta_{ts} = 0.3$, **would be cancelled out** if we observe $\mathrm{SMD} \geq 1.5$ (indicated by the <span style="background-color: #CC79A7;color: white;">purple</span> circle). (The inset then shows the inverse, i.e., assuming that $\beta_{ce}$ is negative.)
 
-@morasca present some effort estimates where $\sigma = [0.35,7.2]$; a very large dispersion, indicating much uncertainty. If we'd assume $\sigma = 0.35$, it would imply that a change in the outcome would be $\mathrm{SMD} \cdot \sigma = 1.5 \cdot 0.35 \approx 0.5$ units, while $\sigma=7.2$ would indicate roughly $11$ units. That is an order of magnitude in difference. However, these values are values for actual effort estimates, and not neccessarily representative of the effect a confounder would have on the treatment. We could assume that effect to be smaller. Otherwise we have missed to account for a confounder that has a stronger effect on the treatment, than the effect the treatment has on the outcome. That is not likely to happen.
+@morasca present some effort estimates where $\sigma = [0.35, 7.2]$; a very large dispersion, indicating much uncertainty. If we'd assume $\sigma = 0.35$, it would imply that a change in the outcome would be $\mathrm{SMD} \cdot \sigma = 1.5 \cdot 0.35 \approx 0.5$ units, while $\sigma=7.2$ would indicate roughly $11$ units. That is an order of magnitude in difference. However, these values are values for actual effort estimates, and not neccessarily representative of the effect a confounder would have on the treatment. We would assume the effect to be smaller. If not, we missed to account for a confounder that has a stronger effect on the treatment, than the effect the treatment has on the outcome. That is not likely to happen.
 
 # References
