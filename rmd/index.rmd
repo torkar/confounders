@@ -737,7 +737,7 @@ p1 + annotation_custom(ggplotGrob(p2), xmin = 0.27, xmax = 0.50,
                        ymin = 2, ymax = 4)
 ```
 
-Focus first on the main plot and not the inset. What the plot is trying to convey is that if we have, e.g., $\beta_{ce} = 0.2$, that is, the confounder's effect on the outcome, then the effect the treatment has on the outcome, i.e., the blue line representing $\beta_{ts} = 0.3$, **would be cancelled out** if we observe $\mathrm{SMD} \geq 1.5$ (indicated by the purple circle). 
+Focus first on the main plot and not the inset. What the plot is trying to convey is that if we have, e.g., $\beta_{ce} = 0.2$, that is, the confounder's effect on the outcome, then the effect the treatment has on the outcome, i.e., the blue line representing $\beta_{ts} = 0.3$, **would be cancelled out** if we observe $\mathrm{SMD} \simeq 1.5$ (indicated by the purple circle). 
 
 In summary, if we'd assume $\sigma = 1.5$, it would imply that a change in the outcome would be $1.5^2 = 2.25$ units. The inset then shows the inverse, i.e., assuming that there is a negative effect of $\beta_{ce}$.
 
