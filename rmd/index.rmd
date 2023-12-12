@@ -628,7 +628,7 @@ Let's do that.
 
 ## Sensitivity analysis of unknown confounders
 
-We have come to the conclusion that a medium-sized effect ($\beta_{ts} = 0.3$) could possibly be discovered given the assumptions we made (assuming, of course, that we can collect the sample size needed). But, recall, an unmeasured confounder $C$ could exist between the outcome $E$ and the treatment $TS$. 
+We have come to the conclusion that a medium-sized effect ($\beta_{ts} = 0.3$) could possibly be discovered given the assumptions we made (assuming, of course, that we can collect the sample size needed). But, recall, an unmeasured confounder $C$ could exist between the treatment $TS$ and the outcome $E$. 
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center", warning=FALSE}
 var_labs <- c(
@@ -666,17 +666,17 @@ ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
             label = as.character(expression(paste(italic(β)[ts], "=0.3"))),
             parse = TRUE) +
   geom_text(x = 2.65, y = 1.5, size = 6,
-            label = as.character(expression(paste(italic(β)[ce], "=?"))),
+            label = as.character(expression(paste(italic(β)[ce]))),
             parse = TRUE) +
   geom_text(x = 1.3, y = 1.5, size = 6,
-            label = as.character(expression(paste("SMD=?"))),
+            label = as.character(expression(paste("SMD"))),
             parse = TRUE) +
   theme_dag()
 ```
 
-Next, we need to set assumptions concerning the effect an unknown confounder, $C$, has on the outcome $E$ (i.e., the $\beta_{ce}$ effect for $C \rightarrow E$) **or** we need to set assumptions concerning how the confounder, $C$, affects the treatment $TS$ by using the Scaled Mean Difference (i.e., SMD for $C \rightarrow TS$).
+To move forward in this matter, we need to set assumptions concerning the effect an unknown confounder, $C$, has on the outcome $E$ (i.e., $\beta_{ce}$) **or** we need to set assumptions concerning how the confounder, $C$, affects the treatment $TS$ through the Scaled Mean Difference (i.e., $\mathrm{SMD}$).
 
-A first step could be to step through $\beta_{ce}$ values, given $\beta_{ts} = 0.1$, and see what this implies for $\mathrm{SMD}$.
+A first step could be to step through $\beta_{ce}$ values, e.g., given $\beta_{ts} = 0.1$, and see what this implies for $\mathrm{SMD}$.
 
 ```{r, echo=FALSE, message=FALSE}
 palette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
@@ -695,9 +695,9 @@ tip_coef(b_ts, confounder_outcome_effect = b_ce, verbose = FALSE) |>
   theme_minimal()
 ```
 
-On the vertical axis $\mathrm{SMD}$ is plotted, while on the horizontal axis, the effect the confounder has on the outcome ($\beta_{ce}$), is plotted. What we see is that the closer to zero $\beta_{ce}$ comes, the higher (or lower) $\mathrm{SMD}$ needs to be to cancel out (or tip) the estimated effect. This is logical, since if $\beta_{ce}$ is very small, $\mathrm{SMD}$ needs to compensate to cancel out the estimated effect (in a postitive or negative fashion).
+On the vertical axis $\mathrm{SMD}$ is plotted, while on the horizontal axis, the effect the confounder has on the outcome ($\beta_{ce}$), is plotted. What we see is that the closer to zero $\beta_{ce}$ comes, the higher (or lower) $\mathrm{SMD}$ needs to be to cancel out (or tip) the estimated effect. This is logical, since if $\beta_{ce}$ is very small, $\mathrm{SMD}$ needs to compensate to cancel out the estimated effect (with a large scaled, positive or negative, mean difference).
 
-Next, let's simply step through $\beta_{ce}$ effects between $0.1$ to $0.5$, and plot them to look at what this implies concerning $\mathrm{SMD}$. We will also plot several hypothetical $\beta_{ts}$ effects, not only the assumed $\beta_{ts} = 0.3$.
+Let's simply step through some effects that might be relevant for us, i.e., $\beta_{ce}$ effects between $0.1$ to $0.5$, and plot them to look at what this implies concerning $\mathrm{SMD}$. We will also plot several hypothetical $\beta_{ts}$ effects, not only the assumed $\beta_{ts} = 0.3$.
 
 ```{r, echo=FALSE, message=FALSE}
 # We assume β = 0.3, but can't hurt varying the size
@@ -739,6 +739,6 @@ p1 + annotation_custom(ggplotGrob(p2), xmin = 0.27, xmax = 0.50,
 
 Focus first on the main plot and not the inset. What the plot is trying to convey is that if we have, e.g., $\beta_{ce} = 0.2$, that is, the confounder's effect on the outcome, then the effect the treatment has on the outcome, i.e., the blue line representing $\beta_{ts} = 0.3$, **would be cancelled out** if we observe $\mathrm{SMD} \geq 1.5$ (indicated by the purple circle). 
 
-In summary, if we assume $\sigma = 1.5$, it would imply that a change in the outcome would be $1.5^2 = 2.25$ units. The inset then shows the reverse, i.e., where assume a negative effect of $\beta_{ce}$.
+In summary, if we'd assume $\sigma = 1.5$, it would imply that a change in the outcome would be $1.5^2 = 2.25$ units. The inset then shows the inverse, i.e., assuming that there is a negative effect of $\beta_{ce}$.
 
 # References
