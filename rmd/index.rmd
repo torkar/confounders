@@ -403,7 +403,7 @@ In addition to the outcome $E$ and the treatment $TS$, there are several variabl
 
 Ultimately, the case we have in front of us is the classical case of a confounder affecting both the treatment and the outcome.
 
-```{r, echo=FALSE, fig.align="center"}
+```{r, echo=FALSE, out.width="60%", fig.align="center"}
 my_dag <- dagify(
   TS ~ C,
   E ~ C,
@@ -529,7 +529,7 @@ names(res_d) <- NULL
 # create a data frame d[912 x 7]
 # n_id = the 19 sample sizes repeated {10,15,...,100} x 48
 # s_id = each param setting (48) was repeated with 19 diff sample sizes
-#   {1,1,...,1} {2,2,...,2} ... {48,48,...,48}
+#   {1,1,...,1}, {2,2,...,2}, ..., {48,48,...,48}
 # mu = mean of each param estimated by HMC
 # low50 = 50% highest posterior density (low)
 # high50 = 50% highest posterior density (high)
@@ -664,7 +664,7 @@ ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
   scale_colour_manual(values = df$data$cols) +
   geom_dag_text(mapping = aes(label = var_labs), parse = TRUE) +
   geom_text(x = 2, y = 1.04, size = 6,
-            label = as.character(expression(paste(italic(β)[ts], "=0.3"))),
+            label = as.character(expression(paste(italic(β)[ts], " = 0.3"))),
             parse = TRUE) +
   geom_text(x = 2.65, y = 1.5, size = 6,
             label = as.character(expression(paste(italic(β)[ce]))),
