@@ -44,7 +44,7 @@ If we look at it as software engineers, one possible way to visualize this would
 
 A graphical summary (directed acyclic graph), of what we said above, can be visualized like this:
 
-```{r, out.width="60%", fig.align="center"}
+```{r, out.width="60%", fig.align="center", fig.cap = "A simple yet realistic DAG."}
 my_dag <- dagify(
   Lang ~ Skills,
   Qual ~ Skills,
@@ -160,7 +160,7 @@ Assume that the Skills is some latent variable we have to measure such a constru
 
 However, as an empirical researcher you might not want to bet your life on it if you look at the plot below; this is how large a difference there would be between the two languages. More importantly, you should present these results to your readers and argue for why it is either a) unlikely that a counfounder exists, or b) go measure the latent variable Skills carefully.
 
-```{r, echo=FALSE, out.width="60%", fig.align="center"}
+```{r, echo=FALSE, out.width="60%", fig.align="center", fig.cap="The difference between language on the outcome scale."}
 tip_c <- tibble(x = sample(0:1, n, replace = TRUE)) |>
   mutate(qs = rnorm(n, mean = 45 + (-2.3 * 1.5 * x), sd = 1.5))
 
@@ -180,7 +180,7 @@ ggplotly(p)
 
 ### Assumptions concerning SMD
 
-As previously explained, there are two arrows going from Skills. In the previous section we focused on the arrow $\mathrm{Skills} \rightarrow \mathrm{Qual}$, i.e., setting the $\beta_{\mathrm{Skills}}$ estimate to analyze the size of SMD needed to cancel out the direct causal effect of Lang on Qual. Here we will now do the opposite, i.e., given an SMD, how large a $\beta_{\mathrm{Skills}}$ is needed to cancel out the causal effect of $Lang \rightarrow Qual$.
+As previously explained, there are two arrows going from Skills (see below). In the previous section we focused on the arrow $\mathrm{Skills} \rightarrow \mathrm{Qual}$, i.e., setting the $\beta_{\mathrm{Skills}}$ estimate to analyze the size of SMD needed to cancel out the direct causal effect of Lang on Qual. Here we will now do the opposite, i.e., given an SMD, how large a $\beta_{\mathrm{Skills}}$ is needed to cancel out the causal effect of $Lang \rightarrow Qual$.
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center"}
 my_dag <- dagify(
@@ -211,7 +211,7 @@ Above we see that $\beta_{\mathrm{Skills}} \approx 1.50$ (i.e., the confounder_o
 
 # A second, more involved, example
 
-```{r, echo=FALSE, out.width="60%", fig.align="center"}
+```{r udag, echo=FALSE, out.width="60%", fig.align="center", fig.cap="A larger more realistic DAG taken from Feldt et al. (2023)."}
 var_labs <- c(
   `BA` = "BA", # business area
   `H` = "H", # hardware-focussed or not
@@ -286,7 +286,7 @@ The adjustment set is $\mathcal{A} = \{ O, S \}$. By conditioning on $O$ and $S$
 
 Let's do this systematically and overlay numbers on the plot, from bottom to top, to make sure that we don't miss anything.
 
-```{r, echo=FALSE, out.width="60%", fig.align="center"}
+```{r, echo=FALSE, out.width="60%", fig.align="center", fig.cap="The DAG where we have also marked in <span style='background-color: #D55E00;color: white;'>orange</span> the adjustment set, and numbered all edges."}
 col_labs <- c(
   `BA` = "#56B4E9", `H` = "#56B4E9", `PL` = "#56B4E9",
   `L` = "#56B4E9", `O` = "#D55E00", `PT` = "#56B4E9", `S` = "#D55E00",
@@ -345,7 +345,7 @@ Edge #18, however, is more serious. A confounder between $TS$ and $E$, i.e., $TS
 
 Below is an updated UDAG where we mark all variables that we condition on in orange, the confounder is in <span style="background-color: #F0E442;color: white;">yellow</span>, while the outcome and treatment are in black. Other variables that we have no use for are now removed from the plot and further analysis. Already this step has clarified that there are a number of variables that we don't have to collect.
 
-```{r, echo=FALSE, out.width="60%", fig.align="center"}
+```{r, echo=FALSE, out.width="60%", fig.align="center", fig.cap="The DAG after closing backdoor paths and adjusting for possible confounders. Note that an umeasured confounder might still exist (in <span style='background-color: #F0E442;color: white;'>yellow</span>)"}
 var_labs <- c(
   `BA` = "BA", # business area
   `O` = "O", # organisation
@@ -403,7 +403,7 @@ In addition to the outcome $E$ and the treatment $TS$, there are several variabl
 
 Ultimately, the case we have in front of us is the classical case of a confounder affecting both the treatment and the outcome.
 
-```{r, echo=FALSE, out.width="60%", fig.align="center"}
+```{r, echo=FALSE, out.width="60%", fig.align="center", fig.cap="The elementary DAG needing further analysis."}
 my_dag <- dagify(
   TS ~ C,
   E ~ C,
@@ -631,7 +631,7 @@ Let's do that.
 
 We have come to the conclusion that a medium-sized effect ($\beta_{ts} = 0.3$) could possibly be discovered given the assumptions we made (assuming, of course, that we can collect the sample size needed). But, recall, an unmeasured confounder $C$ could exist between the treatment $TS$ and the outcome $E$. 
 
-```{r, echo=FALSE, out.width="60%", fig.align="center", warning=FALSE}
+```{r, echo=FALSE, out.width="60%", fig.align="center", warning=FALSE, fig.cap="Elementary DAG with assumptions."}
 var_labs <- c(
   `TS` = "TS",
   `C` = "C",
@@ -679,7 +679,7 @@ To move forward in this matter, we need to set assumptions concerning the effect
 
 A first step could be to step through $\beta_{ce}$ values, e.g., given $\beta_{ts} = 0.1$, and see what this implies for $\mathrm{SMD}$.
 
-```{r, echo=FALSE, message=FALSE, fig.align="center"}
+```{r, echo=FALSE, message=FALSE, fig.align="center", fig.cap="The interplay between the effect of a confounder on the outcome ($\\beta_{ce}$) and the scaled mean difference (SMD) in the confounders effect on the treatment (SMD)."}
 palette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
              "#0072B2", "#D55E00", "#CC79A7")
 
@@ -700,7 +700,7 @@ On the vertical axis $\mathrm{SMD}$ is plotted, while on the horizontal axis, th
 
 Let's simply step through some effects that might be relevant for us, i.e., $\beta_{ce}$ effects between $0.1$ to $0.5$, and plot them to look at what this implies concerning $\mathrm{SMD}$. We will also plot several hypothetical $\beta_{ts}$ effects, not only the assumed $\beta_{ts} = 0.3$.
 
-```{r, echo=FALSE, message=FALSE, fig.align="center"}
+```{r, echo=FALSE, message=FALSE, fig.align="center", fig.cap="The relationship between $\\beta_{ce}$ and $\\mathrm{SMD}$."}
 # We assume β = 0.3, but can't hurt varying the size
 es <- seq(0.2, 0.4, 0.05)
 
@@ -738,8 +738,37 @@ p1 + annotation_custom(ggplotGrob(p2), xmin = 0.27, xmax = 0.50,
                        ymin = 2, ymax = 4)
 ```
 
-Focus first on the main plot and not the inset. What the plot is trying to convey is that if, e.g., $\beta_{ce} = 0.2$, that is, the confounder's effect on the outcome, then the effect the treatment has on the outcome, i.e., the <span style="background-color: #56B4E9;color: white;">blue</span> line representing $\beta_{ts} = 0.3$, **would be cancelled out** if we observe $\mathrm{SMD} \geq 1.5$ (indicated by the <span style="background-color: #CC79A7;color: white;">purple</span> circle). (The inset then shows the inverse, i.e., assuming that $\beta_{ce}$ is negative.)
+Focus first on the main plot and not the inset. What the plot is trying to convey is that if, e.g., $\beta_{ce} = 0.2$, that is, the confounder's effect on the outcome, then the effect the treatment has on the outcome, i.e., the <span style="background-color: #56B4E9;color: white;">blue</span> line representing $\beta_{ts} = 0.3$, **would be cancelled out** by $\mathrm{SMD} = 1.5$ (indicated by the <span style="background-color: #CC79A7;color: white;">purple</span> circle). (The inset then shows the inverse, i.e., assuming that $\beta_{ce}$ is negative.)
 
-@morasca present some estimates of effort where $\sigma = [0.35, 7.2]$; a very large dispersion, indicating much uncertainty. If we'd assume $\sigma = 0.35$, it would imply that a change in the outcome would be $\mathrm{SMD} \cdot \sigma = 1.5 \cdot 0.35 \approx 0.5$ units, while $\sigma=7.2$ would indicate roughly $11$ units. That is an order of magnitude in difference. However, these values are values for actual estimates of effort, and not neccessarily representative of the effect a confounder would have on the treatment. We would assume the effect to be smaller. If not, we've missed to account for a confounder that has a stronger effect on the treatment, than the effect the treatment has on the outcome. That is not likely to happen.
+First, @morasca presented some estimates of effort where $\sigma = [0.35, 7.2]$; a very large dispersion, indicating much uncertainty. If we'd assume $\sigma = 0.35$, it would imply that a change in the outcome would be $\mathrm{SMD} \cdot \sigma = 1.5 \cdot 0.35 \approx 0.5$ units, while $\sigma=7.2$ would indicate roughly $11$ units. That is an order of magnitude in difference. However, these values are values for actual estimates of *effort*, i.e., the outcome, and not neccessarily representative of the effect a confounder would have on the *treatment* (that then affects the outcome). But we would assume the effect to be smaller. If not, we've missed to account for a confounder that has a stronger effect on the treatment, than the effect the treatment has on the outcome. That is not likely to happen.
+
+Second, we are fairly certain that $\beta_{ts}$ will not be of a large effect size. Earlier, we talked about $0.3$ as a realistic value, and that we would not expect a larger effect size than that. If we look at the plot above, perhaps an even more realistic [conservative] view to have is to assume $\beta_{ts} = 0.2$ (the <span style="background-color: #000000;color: white;">black</span> line). If that would be the case, one can see that we'd expect an even smaller $\mathrm{SMD}$ to tip the results, i.e., there's an increased risk that we miss a confounder with such a small $\mathrm{SMD}$. One could summarize this by comparing with physics, when effects are small we reach a singularity and everything breaks down due to the uncertainty.
+
+Third, the opposite also holds, i.e., if we move to the right on the horizontal axis, it is evident that all effect sizes for $\beta_{ts}$ are squished together the further to the right we move (i.e., the larger the $\beta_{ce}$ estimates are). The lesson here is that if we expect larger effect sizes, $>0.5$, for the confounder's effect on the outcome, one could make a convincing argument that the risk of such an effect being cancelled out would be almost negligible. In short, we would be aware of such a confounder, if we'd done our homework.
+
+# Concluding remarks
+
+So what has this analysis given us? Hopefully a deeper understanding that one needs to do much more upfront analysis before designing and executing a study. In short, we can argue, from a probabilistic view point, if it's worth to do a study or not.
+
+Initially we presented the concept of confounders. Our hope is that researchers start thinking about confounders more often and to take these constructs seriously. Much software engineering research today, we suspect, does not do that.
+
+After, initially, having introduced the concept of confounders we then provided a larger, more realistic, example. The example is built around a causal systematic review. One of the aims of the causal systematic review was to indicate where areas of further research should be done, but also to synthesize the current knowledge into a directed acyclic graph (DAG). The DAG was used as input in our analysis, and as an example we assumed that there is an outcome ($E$) and a treatment ($TS$) we were interested in investigating further. However, a more complex DAG such as the one in Fig. \@ref(fig:udag), required us to be careful and, first, decide on a minimal adjustment set to receive an unbiased estimate of the direct causal effect of $TS$ on $E$, i.e., $\mathcal{A} = \{O, S\}$. 
+
+Next, we analyzed the DAG to see which other backdoor paths we could close, and which nodes we could condition on to minimize the risk of having an unknown/umeasured confounder affecting our analysis, further growing our adjustment set to $\mathcal{A} = \{O,S,ST,BA\}$. 
+
+Finally, we faced the conundrum where a potential confounder $C$ could still affect the estimate, since it potentially could affect the treatment and the outcome. To deal with this a number of assumptions were needed to be established, to move forward in this matter. Assumptions were made concerning:
+
+* the type of variables we were dealing with (e.g., $\mathbb{N}^+$ and $\mathbb{R}$).
+* effect sizes (where we exhaustively tried all variations for realistic effect sizes).
+* sample sizes $N$ (where we tried several levels, i.e., $10, 15, \ldots, 100$).
+
+The analysis showed that we can, 
+
+* recover the ground truth, and
+* trust the estimates when $N \approx 20$.
+
+The last part of the analysis examined the trade-off between $\mathrm{SMD}$ (the effect a confounder has on the treatment) and $\beta_{ce}$ (the effect a confounder has on the outcome), given the treatment's effect size on the outcome.
+
+To conclude, if one can collect data from $20+$ companies, and if we assume that a confounder's effect on the outcome is $\beta_{cs} \leq 0.3$ or the scaled mean difference is $SMD \leq 1.5$, we are safe. We argue that it's fairly safe to assume that we would know of such a confounder.
 
 # References
