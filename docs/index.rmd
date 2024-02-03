@@ -38,9 +38,9 @@ library(ggthemes)
 
 In our work we follow the notation of Pearl and claim that confounding is a purely causal concept [@pearl09reason]. A confounder ($C$) is a variable that causally affects both the treatment ($X$) and the outcome ($Y$), and when a confounder exists we get a spurious (fake) association.
 
-We need to distinguish between two types of studies common in software engineering: experiments (randomized controlled trial, RCT) and observational studies. One reason for why experiments are considered gold standard when conducting studies is that confounding is supposed to be, theoretically, a non-issue due to randomization (i.e., the effect of any confounders will be balanced out). So, very simply put, if we randomly allocate the treatment ($X$), then the causal effect of a confounder ($C$) on $X$ and $Y$ should not matter. With observational studies, on the other hand, the thought was for long that since the researcher did not control the environment a causal approach was impossible. We now know this is not true, and the Nobel Prizes of 2019 and 2021 are further indications of this.
+We need to distinguish between two types of studies common in software engineering: experiments (randomized controlled trial, RCT) and observational studies. One reason for why experiments are considered gold standard when conducting studies is that confounding is supposed to be, theoretically, a non-issue due to randomization (i.e., the effect of any confounders will be balanced out). So, very simply put, if we randomly allocate the treatment ($X$), then the causal effect of a confounder ($C$) on $X$ and $Y$ should not matter. With observational studies, on the other hand, the thought was for long that since the researcher do not control the environment a causal approach was impossible. We now know this is not true, and the Nobel Prizes of 2019 and 2021 are further indications of this.
 
-If we look at it as software engineers, one possible way to visualize this would be to think about the impact of programming languages on code quality. Some people might assume that there's a strong causal effect of language on quality. However, it's not unreasonable to assume that a software engineer's skills could have a direct causal effect on which programming language they use (e.g., skilled people use R) and on the final quality of the artefact produced (e.g., skilled people perform better no matter programming language).
+If we look at it as software engineers, one possible way to visualize this would be to think about the impact of programming languages (e.g., Pythong and Java) on code quality. Some people might assume that there's a strong causal effect of programming language on quality. However, it's not unreasonable to assume that a software engineer's skills could have a direct causal effect on which programming language they use (e.g., skilled people use R) and on the final quality of the artefact produced (e.g., skilled people perform better, no matter programming language).
 
 A graphical summary (directed acyclic graph), of what we said above, can be visualized like this:
 
@@ -62,9 +62,9 @@ ggdag(my_dag) + theme_dag()
 
 In the plot above we see that the confounder, Skills, has a causal effect on the treatment, Lang, and on the outcome, Qual. Also, Lang has a direct causal effect on Qual, but that is what we're generally speaking interested in estimating (i.e., treatment's effect on the outcome).
 
-Confounders are scary, but no need to panic. If we condition on a confounder (i.e., include it as a predictor in our model) we close the path $\overrightarrow{\mathrm{Lang} \leftarrow \mathrm{Skills} \rightarrow \mathrm{Qual}}$ and, hence, an unbiased estimate of the direct effect of Lang on Qual can be estimated. However, this means that we must have measured Skills, so we can condition on that variable. As we will see later, omitted variable bias (i.e., we do not have access to some variables) is something we can reason about and provide convincing arguments that it likely does not affect the results of a study. But how dangerous is omitted variable bias?
+Confounders are scary, but no need to panic. If we condition on a confounder (i.e., include it as a predictor in our model) we close the path $\underrightarrow{\mathrm{Lang} \leftarrow \mathrm{Skills} \rightarrow \mathrm{Qual}}$ and, hence, an unbiased estimate of the direct effect of Lang on Qual can be estimated. However, this means that we must have measured Skills, so we can condition on that variable. As we will see later, omitted variable bias (i.e., we do not have access to some variables) is something we can reason about and provide convincing arguments that it likely does not affect the results of a study. But how dangerous is omitted variable bias?
 
-Let's generate some fake data first. That way we *know* the truth.
+Let's generate some fake data first. That way we *know* the truth. For simplicity we'll assume that Lang is not categorical but rather continuous (which in this case will not have any effect on the end result).
 
 ```{r, message=FALSE, cache=TRUE}
 n <- 1e5
@@ -102,7 +102,7 @@ fixef(without_skills)[2, 1]
 
 Conditioning on Skills allows us to get the correct estimate for Lang ($\widehat{\mathrm{Lang}}_s \approx$ `r round(fixef(with_skills)[2,1], 2)`) since we close the backdoor. If we don't condition on Skills we get a biased (in this case positive) estimate, i.e., $\widehat{\mathrm{Lang}}_{\neg s} \approx$ `r round(fixef(without_skills)[2,1], 2)`, because of Skills's effect on both Lang and Qual.
 
-There are a few lessons to learn from the above simple example. First, confounders can have an effect on the estimate. Second, the bias is positive in this case, but can also be negative (change Skills's sign on Lang and you'll see). Third, if we want to have an unbiased estimate we need to condition on the confounder (Skills in this case), to close the backdoor that goes from $\overrightarrow{\mathrm{Lang} \leftarrow \mathrm{Skills} \rightarrow \mathrm{Qual}}$.
+There are a few lessons to learn from the above simple example. First, confounders can have an effect on the estimate. Second, the bias is positive in this case, but can also be negative (change Skills's sign on Lang and you'll see). Third, if we want to have an unbiased estimate we need to condition on the confounder (Skills in this case), to close the backdoor that goes from $\underrightarrow{\mathrm{Lang} \leftarrow \mathrm{Skills} \rightarrow \mathrm{Qual}}$.
 
 If we conduct an obervational study, and if we don't have access to Skills, i.e., it's unmeasured for some reason, or perhaps unknown, then we are now facing omitted variable bias. However, all is not lost. *We can still argue if it's likely that Skills would nullify the causal effect of Lang on Qual*.
 
@@ -130,11 +130,11 @@ we see that there are two arrows going from Skills. First, we have $\mathrm{Skil
 
 The SMD is the confounder's effect on the different groups in Lang (e.g., Java and Python). In math, it's something like this:
 
-$$\mathrm{SMD} = \frac{\overline{\mathrm{Skills}}_{\mathrm{Java}} - \overline{\mathrm{Skills}}_{\mathrm{Python}}}{\sigma_Z}$$
+$$\mathrm{SMD} = \frac{\overline{\mathrm{Skills}}_{\mathrm{Java}} - \overline{\mathrm{Skills}}_{\mathrm{Python}}}{\sigma_{\mathrm{Lang}}}$$
 
-The difference in mean between Java and Python can then, by using SMD, be represented as a difference in $\sigma$. For example, a $3\sigma$, $1\sigma$, or $0.1\sigma$ difference between two categories.
+The difference in mean between Java and Python can then, by using SMD, be represented as a difference in $\sigma$. For example, a $3\sigma$, $1\sigma$, or $0.1\sigma$ difference between two categories (since we divide it by $\sigma_{\mathrm{Lang}}$).
 
-If we next look at the other arrow ($\mathrm{Skills} \rightarrow \mathrm{Qual}$), we don't need to think about the SMD since Skills is affecting the outcome Qual and not the treatment Lang. Here we can simply estimate the effect as a regular $\beta$ estimate that we're used to, i.e., in our case the $\beta_{\mathrm{Skills}}$ estimate of our confounder Skills. As is common, one could for example say that $\beta_{\mathrm{Skills}} = 3$ meaning that a 1-unit change in Skills would imply a 3-unit change in Qual.
+If we next look at the other arrow ($\mathrm{Skills} \rightarrow \mathrm{Qual}$), we don't need to think about the SMD since Skills is affecting the outcome Qual and not the treatment Lang. Here we can simply estimate the effect as a regular $\beta$ estimate that we're used to, i.e., in our case the $\beta_{\mathrm{Skills}}$ estimate of our confounder Skills. (One could for example say that $\beta_{\mathrm{Skills}} = 3$ meaning that a 1-unit change in Skills would imply a 3-unit change in Qual.)
 
 With these two concepts, the SMD and the $\beta_{\mathrm{Skills}}$ estimate, we can now add assumptions to our analysis and argue how likely it is that they would hold. According to @linPK98sens we now have three options to choose between:
 
@@ -156,7 +156,7 @@ tidy(with_skills, conf.int = TRUE) |>
 
 then a hypothetical unmeasured continuous confounder with $\beta_{\mathrm{Skills}} = 1.5$ and $\mathrm{SMD} \approx -2.3$, would cancel out the effect (in our case $0.4$) of Lang on Qual. Hence, given our assumptions, a 1-unit change in an unmeasured confounder (Skills) leading to a 1.5-unit change in Qual and, *et voilà*, you would not have a Nature paper. Visualizing what this means might help.
 
-Assume that the Skills is some latent variable we have to measure such a construct. Assume we have som quality measure we're interested in distributed as $\mathrm{Normal}(45,1.5)$. Our scaled difference that we received above (i.e., $-2.3$) can be transformed to a quality score by multiplying with $\sigma = 1.5$ (our assumed dispersion), i.e., $1.5 \cdot -2.3 \approx -3.45$. This implies that between two categories (Java and Python) we would need to see a difference of approximately $3.45$ in a quality score when implementing a feature. Is this unlikely? Perhaps; context matters. 
+Assume we have som quality measure we're interested in distributed as $\mathrm{Normal}(45,1.5)$ (this could for example be the average number of bugs per $x$ lines of code introduced into a system by any language). Our scaled difference that we received above (i.e., $-2.3$) can be transformed to a quality score by multiplying with $\sigma = 1.5$ (our assumed dispersion), i.e., $1.5 \cdot -2.3 \approx -3.45$. This implies that between two categories (Java and Python) we would need to see a difference of approximately $3.45$ bugs in a quality score when implementing a feature. Is this unlikely? Perhaps; context matters. 
 
 However, as an empirical researcher you might not want to bet your life on it if you look at the plot below; this is how large a difference there would be between the two languages. More importantly, you should present these results to your readers and argue for why it is either a) unlikely that a counfounder exists, or b) go measure the latent variable Skills carefully.
 
@@ -180,7 +180,7 @@ ggplotly(p)
 
 ### Assumptions concerning SMD
 
-As previously explained, there are two arrows going from Skills (see below). In the previous section we focused on the arrow $\mathrm{Skills} \rightarrow \mathrm{Qual}$, i.e., setting the $\beta_{\mathrm{Skills}}$ estimate to analyze the size of SMD needed to cancel out the direct causal effect of Lang on Qual. Here we will now do the opposite, i.e., given an SMD, how large a $\beta_{\mathrm{Skills}}$ is needed to cancel out the causal effect of $Lang \rightarrow Qual$.
+As previously explained, there are two arrows going from Skills (see below). In the previous section we focused on the arrow $\mathrm{Skills} \rightarrow \mathrm{Qual}$, i.e., setting the $\beta_{\mathrm{Skills}}$ estimate to analyze the size of SMD needed to cancel out the direct causal effect of Lang on Qual. Here we will now do the opposite, i.e., given an SMD, how large a $\beta_{\mathrm{Skills}}$ is needed to cancel out the causal effect of $\mathrm{Lang} \rightarrow \mathrm{Qual}$.
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center"}
 my_dag <- dagify(
@@ -270,7 +270,7 @@ ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
   theme_dag()
 ```
 
-@feldtSFT23sysrev extracted causal links from several primary studies and attempted to assemble disparate evidence into a Unified Directed Acyclic Graph (UDAG) as above. In the UDAG above the letters are, from left to right, short for: $BA$ Business Area, $PL$ Programming Language, $H$ Hardware, $ST$ Software Type, $PT$ Project Type, $S$ Size of software, $L$ Location, $E$ Effort, $O$ Organization type, and $TS$ Team Size. 
+@feldtSFT23sysrev extracted causal links from several primary studies and attempted to assemble disparate evidence into a Unified Directed Acyclic Graph (UDAG) as above. In the UDAG above the letters are, from left to right and from bottom to top, short for: $BA$ Business Area, $PL$ Programming Language, $H$ Hardware, $ST$ Software Type, $PT$ Project Type, $S$ Size of software, $L$ Location, $E$ Effort, $O$ Organization type, and $TS$ Team Size. 
 
 We'd like to know the direct effect of $TS$ on $E$ (both in <span style="background-color: black;color: white;">black</span>), i.e., Team Size's direct effect on Effort. One would think it's a straightforward thing to measure, but not taking into account confounders would lead to biased estimates, i.e., due to spurious associations.
 
@@ -331,7 +331,8 @@ If we look at the plot above, and take Edge #1 as an example, the question we're
 
 The potential answer to the above question would be one of three cases: 
 
-1. It would not affect the estimate (**n/a**).
+1. It would not affect the estimate (**n/a**). This may happen because the chosen 
+adjustment set _already_ blocks the confounding effect of a confounder, $C$.
 2. By conditioning on other variable(s) we close the path and then the confounder will not affect the estimate (**co**).
 3. We truly have a case of omitted variable bias, which means that we need to conduct a sensitivity analysis (**ovb**).
 
@@ -339,9 +340,9 @@ In Case 1 (**n/a**), a confounder would not affect the possibility for us to rec
 
 If we next analyze what it would imply if an unknown confounder truly existed at each of the above edges, while we condition on $S$ and $O$, we quickly see that there are only two edges that we need to be careful about: Edges #17 and #18.
 
-Edge #17 is a bit tricky. If there would be a confounder between $S$ and $TS$, i.e., $S \leftarrow C \rightarrow TS$ (in addition to Edge #17), it would bias the estimate. However, in this particular case we don't have to see it as a case of omitted variable bias (Case #3 above), since if we condition on $BA$ *and* $ST$, we would close those paths and still be able to get an unbiased estimate of the direct effect of $TS$ on $E$. In short, this is a case of **co** as explained above.
+Edge #17 is a bit tricky. If there would be a confounder between $S$ and $TS$, i.e., $S \leftarrow C \rightarrow TS$ (in addition to Edge #17), it would bias the estimate. However, in this particular case we don't have to see it as a case of omitted variable bias (Case #3 above), since if we condition on $BA$ *and* $ST$, we would close those paths and still be able to get an unbiased estimate of the direct effect of $TS$ on $E$. In short, this is a case of **co** as explained above, which we reach by iteratively conduct another adjustment set analysis.
 
-Edge #18, however, is more serious. A confounder between $TS$ and $E$, i.e., $TS \leftarrow C \rightarrow E$ (in addition to Edge #19), would bias our estimate. This is a clear case of omitted variable bias (i.e., **ovb**), since we can't solve it by conditioning on any other variables. In short, if such an unknown/unmeasured confounder exists, we'd be toast.
+Edge #18, however, is more serious. A confounder between $TS$ and $E$, i.e., $TS \leftarrow C \rightarrow E$, would bias our estimate. This is a clear case of omitted variable bias (i.e., **ovb**), since we can't solve it by conditioning on any other variables. In short, if such an unknown/unmeasured confounder exists, we'd be toast.
 
 Below is an updated UDAG where we mark all variables that we condition on in orange, the confounder is in <span style="background-color: #F0E442;color: white;">yellow</span>, while the outcome and treatment are in black. Other variables that we have no use for are now removed from the plot and further analysis. Already this step has clarified that there are a number of variables that we don't have to collect.
 
@@ -608,7 +609,7 @@ Still focusing on the main top plot, in each individual subplot we see the estim
 
 If we first take a helicopter view of all subplots we see a few things immediately.
 
-0. **We can recover the ground truth.** The wiggly black line converges around the red line quickly as we increase the sample size. That, in itself, is an indication that our model represents the underlying data generation process well. I would even claim: Spectacularly well.
+0. **We can recover the ground truth.** The wiggly black line converges around the red line quickly as we increase the sample size. That, in itself, is an indication that our model represents the underlying data generation process well (which is not strange in itself since the generative model and the inference model are similar).
 1. All subplots are very similar. This is the only reason for plotting all these plots, i.e., to visualize all the combinations and see the similarity. In short, **we don't have to worry about the other effects affecting the direct causal effect of interest**, no matter the sign or magnitude of the other effects. It's reassuring, but given causal calculus, it should not be surprising.
 2. All subplots show (wiggly black line) that the estimate is not close to the ground truth (red line) in small sample sizes. However, already when we get close to $20$&ndash;$30$ samples **the estimate starts to stabilize around the ground truth**. Thank you Central Limit Theorem.
 3. **All subplots start with much uncertainty around the estimate due to small sample sizes.** If we examine the top main plot we see that the shade (light or even the dark) crosses zero very much at the beginning, i.e., this is an effect we would have a hard time to uncover due to a small sample size. When the direct causal effect is small and we have small sample sizes, chances of us finding a significant result is slim to none. If we find an effect it will simply be pure luck.
