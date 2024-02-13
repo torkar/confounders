@@ -40,7 +40,7 @@ In our work we follow the notation of Pearl and claim that confounding is a pure
 
 We need to distinguish between two types of studies common in software engineering: experiments (randomized controlled trial, RCT) and observational studies. One reason for why experiments are considered gold standard when conducting studies is that confounding is supposed to be, theoretically, a non-issue due to randomization (i.e., the effect of any confounders will be balanced out). So, very simply put, if we randomly allocate the treatment ($X$), then the causal effect of a confounder ($C$) on $X$ and $Y$ should not matter. With observational studies, on the other hand, the thought was for long that since the researcher do not control the environment a causal approach was impossible. We now know this is not true, and the Nobel Prizes of 2019 and 2021 are further indications of this.
 
-If we look at it as software engineers, one possible way to visualize this would be to think about the impact of programming languages (e.g., Pythong and Java) on code quality. Some people might assume that there's a strong causal effect of programming language on quality. However, it's not unreasonable to assume that a software engineer's skills could have a direct causal effect on which programming language they use (e.g., skilled people use R) and on the final quality of the artefact produced (e.g., skilled people perform better, no matter programming language).
+If we look at it as software engineers, one possible way to visualize this would be to think about the impact of programming languages (e.g., Python and Java) on code quality. Some people might assume that there's a strong causal effect of programming language on quality. However, it's not unreasonable to assume that a software engineer's skills could have a direct causal effect on which programming language they use (e.g., skilled people use R) and on the final quality of the artefact produced (e.g., skilled people perform better, no matter programming language).
 
 A graphical summary (directed acyclic graph), of what we said above, can be visualized like this:
 
@@ -60,7 +60,7 @@ my_dag <- dagify(
 ggdag(my_dag) + theme_dag()
 ```
 
-In the plot above we see that the confounder, Skills, has a causal effect on the treatment, Lang, and on the outcome, Qual. Also, Lang has a direct causal effect on Qual, but that is what we're generally speaking interested in estimating (i.e., treatment's effect on the outcome).
+In the plot above we see that the confounder, Skills, has a causal effect on the treatment, Lang, and on the outcome, Qual. Also, Lang has a direct causal effect on Qual, but that is what we're generally speaking interested in estimating (i.e., a treatment's effect on the outcome).
 
 Confounders are scary, but no need to panic. If we condition on a confounder (i.e., include it as a predictor in our model) we close the path $\underrightarrow{\mathrm{Lang} \leftarrow \mathrm{Skills} \rightarrow \mathrm{Qual}}$ and, hence, an unbiased estimate of the direct effect of Lang on Qual can be estimated. However, this means that we must have measured Skills, so we can condition on that variable. As we will see later, omitted variable bias (i.e., we do not have access to some variables) is something we can reason about and provide convincing arguments that it likely does not affect the results of a study. But how dangerous is omitted variable bias?
 
@@ -182,7 +182,7 @@ ggplotly(p)
 
 As previously explained, there are two arrows going from Skills (see below). In the previous section we focused on the arrow $\mathrm{Skills} \rightarrow \mathrm{Qual}$, i.e., setting the $\beta_{\mathrm{Skills}}$ estimate to analyze the size of SMD needed to cancel out the direct causal effect of Lang on Qual. Here we will now do the opposite, i.e., given an SMD, how large a $\beta_{\mathrm{Skills}}$ is needed to cancel out the causal effect of $\mathrm{Lang} \rightarrow \mathrm{Qual}$.
 
-```{r, echo=FALSE, out.width="60%", fig.align="center"}
+```{r, echo=FALSE, out.width="60%", fig.align="left"}
 my_dag <- dagify(
   Lang ~ Skills,
   Qual ~ Skills,
@@ -340,11 +340,11 @@ In Case 1 (**n/a**), a confounder would not affect the possibility for us to rec
 
 If we next analyze what it would imply if an unknown confounder truly existed at each of the above edges, while we condition on $S$ and $O$, we quickly see that there are only two edges that we need to be careful about: Edges #17 and #18.
 
-Edge #17 is a bit tricky. If there would be a confounder between $S$ and $TS$, i.e., $S \leftarrow C \rightarrow TS$ (in addition to Edge #17), it would bias the estimate. However, in this particular case we don't have to see it as a case of omitted variable bias (Case #3 above), since if we condition on $BA$ *and* $ST$, we would close those paths and still be able to get an unbiased estimate of the direct effect of $TS$ on $E$. In short, this is a case of **co** as explained above, which we reach by iteratively conduct another adjustment set analysis.
+Edge #17 is a bit tricky. If there would be a confounder between $S$ and $TS$, i.e., $S \leftarrow C \rightarrow TS$, it would bias the estimate. However, in this particular case we don't have to see it as a case of omitted variable bias (Case #3 above), since if we condition on $BA$ *and* $ST$, we would close those paths and still be able to get an unbiased estimate of the direct effect of $TS$ on $E$. In short, this is a case of **co** as explained above, which we reach by iteratively conduct another adjustment set analysis.
 
 Edge #18, however, is more serious. A confounder between $TS$ and $E$, i.e., $TS \leftarrow C \rightarrow E$, would bias our estimate. This is a clear case of omitted variable bias (i.e., **ovb**), since we can't solve it by conditioning on any other variables. In short, if such an unknown/unmeasured confounder exists, we'd be toast.
 
-Below is an updated UDAG where we mark all variables that we condition on in orange, the confounder is in <span style="background-color: #F0E442;color: white;">yellow</span>, while the outcome and treatment are in black. Other variables that we have no use for are now removed from the plot and further analysis. Already this step has clarified that there are a number of variables that we don't have to collect.
+Below is an updated UDAG where we mark all variables that we condition on in <span style="background-color: #D55E00;color: white;">orange</span>, the confounder is in <span style="background-color: #F0E442;color: white;">yellow</span>, while the outcome and treatment are in <span style="background-color: #000000;color: white;">black</span>. Other variables that we have no use for are now removed from the plot and further analysis. Already this step has clarified that there are a number of variables that we don't have to collect.
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center", fig.cap="The DAG after closing backdoor paths and adjusting for possible confounders. Note that an umeasured confounder might still exist (in <span style='background-color: #F0E442;color: white;'>yellow</span>)"}
 var_labs <- c(
@@ -396,7 +396,7 @@ Evidently, we see that we condition on more variables than $S$ and $O$ (which wa
 
 How did we come to the results above? Well, analyzing the UDAG according to causal calculus [@pearl09reason] leads to the above results and with experience one receives intuition when analyzing DAGs. However, one can (should) also use software to get some assistance, e.g., the [dagitty](https://dagitty.net) package in R. If you are so inclined you can verify [online](http://dagitty.net/mLQZroN) that our analysis above is correct.
 
-To summarize, we have a challenge dealing with a confounder $C$, which affects both our treatment $TS$ and the outcome $E$, i.e., $TS \leftarrow C \rightarrow E$. Perhaps a researcher could swear that such a confounder cannot physically exist for the studied phenomena, but if one is not 100% sure, then we should do better and fall back on sensitivity analysis of unknown confounders. Before we do that, we need to set som assumptions about the effect size we are expecting. How large a direct effect could we anticipate, and is it likely that we can estimate that effect given a certain sample size?
+To summarize, we have a challenge dealing with a confounder $C$, which affects both our treatment $TS$ and the outcome $E$, i.e., $TS \leftarrow C \rightarrow E$. Perhaps a researcher could swear that such a confounder cannot physically exist for the studied phenomena, but if one is not 100% sure, then we should do better and fall back on sensitivity analysis of unknown confounders. Before we do that, we need to set some assumptions about the effect size we are expecting. How large a direct effect could we anticipate, and is it likely that we can estimate that effect given a certain sample size?
 
 ## Establishing relevant effect sizes
 
@@ -624,7 +624,7 @@ All the above indicates strongly that if we expect a small effect, which is comm
 Nonetheless, all is not joy. As researchers we work under certain assumptions. One such assumption in our case is that our DAG is a correct representation of reality. What if it's not? We need to ascertain the effect a confounder must have on $TS$ and $E$ to cancel out that effect (i.e., to make it cross zero according to some credible interval):
 
 * Make assumptions concerning the confounder (which is unknown or unmeasured) and estimate how large SMD needs to be to cancel out the direct effect (0.3) of $TS$ on $E$.
-* Make assumptions concerning SMD and estimate how large the confounder (which is unknown or unmeasured) needs to be to cancel out the direct effect (0.3) of $TS$ on $E$.
+* Make assumptions concerning SMD and estimate how large the confounder's effect (which is unknown or unmeasured) needs to be to cancel out the direct effect (0.3) of $TS$ on $E$.
 
 Let's do that.
 
@@ -680,7 +680,7 @@ To move forward in this matter, we need to set assumptions concerning the effect
 
 A first step could be to step through $\beta_{ce}$ values, e.g., given $\beta_{ts} = 0.1$, and see what this implies for $\mathrm{SMD}$.
 
-```{r, echo=FALSE, message=FALSE, fig.align="center", fig.cap="The interplay between the effect of a confounder on the outcome ($\\beta_{ce}$) and the scaled mean difference (SMD) in the confounders effect on the treatment (SMD)."}
+```{r, echo=FALSE, message=FALSE, fig.align="center", fig.cap="The interplay between the effect of a confounder on the outcome ($\\beta_{ce}$) and the scaled mean difference (SMD) in the confounders effect on the treatment."}
 palette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
              "#0072B2", "#D55E00", "#CC79A7")
 
@@ -741,7 +741,7 @@ p1 + annotation_custom(ggplotGrob(p2), xmin = 0.27, xmax = 0.50,
 
 Focus first on the main plot and not the inset. What the plot is trying to convey is that if, e.g., $\beta_{ce} = 0.2$, that is, the confounder's effect on the outcome, then the effect the treatment has on the outcome, i.e., the <span style="background-color: #56B4E9;color: white;">blue</span> line representing $\beta_{ts} = 0.3$, **would be cancelled out** by $\mathrm{SMD} = 1.5$ (indicated by the <span style="background-color: #CC79A7;color: white;">purple</span> circle). (The inset then shows the inverse, i.e., assuming that $\beta_{ce}$ is negative.)
 
-First, @morasca presented some estimates of effort where $\sigma = [0.35, 7.2]$; a very large dispersion, indicating much uncertainty. If we'd assume $\sigma = 0.35$, it would imply that a change in the outcome would be $\mathrm{SMD} \cdot \sigma = 1.5 \cdot 0.35 \approx 0.5$ units, while $\sigma=7.2$ would indicate roughly $11$ units. That is an order of magnitude in difference. However, these values are values for actual estimates of *effort*, i.e., the outcome, and not neccessarily representative of the effect a confounder would have on the *treatment* (that then affects the outcome). But we would assume the effect to be smaller. If not, we've missed to account for a confounder that has a stronger effect on the treatment, than the effect the treatment has on the outcome. That is not likely to happen.
+First, if we think about our UDAG we presented earlier, there were a few studies in that UDAG that actually provided some evidence concerning effort estimates. @morasca presented some estimates of effort where $\sigma = [0.35, 7.2]$; a very large dispersion, indicating much uncertainty. If we'd assume $\sigma = 0.35$, it would imply that a change in the outcome would be $\mathrm{SMD} \cdot \sigma = 1.5 \cdot 0.35 \approx 0.5$ units, while $\sigma=7.2$ would indicate roughly $11$ units. That is an order of magnitude in difference. However, these values are values for actual estimates of *effort*, i.e., the outcome, and not neccessarily representative of the effect a confounder would have on the *treatment* (which then affects the outcome). But(!) we should assume the effect to be smaller. If not, we've missed to account for a confounder that has a stronger effect on the treatment, than the effect the treatment has on the outcome. That is not likely to happen.
 
 Second, we are fairly certain that $\beta_{ts}$ will not be of a large effect size. Earlier, we talked about $0.3$ as a realistic value, and that we would not expect a larger effect size than that. If we look at the plot above, perhaps an even more realistic [conservative] view to have is to assume $\beta_{ts} = 0.2$ (the <span style="background-color: #000000;color: white;">black</span> line). If that would be the case, one can see that we'd expect an even smaller $\mathrm{SMD}$ to tip the results, i.e., there's an increased risk that we miss a confounder with such a small $\mathrm{SMD}$. One could summarize this by comparing with physics, when effects are small we reach a singularity and everything breaks down due to the uncertainty.
 
@@ -760,7 +760,7 @@ Next, we analyzed the DAG to see which other backdoor paths we could close, and 
 Finally, we faced the conundrum where a potential confounder $C$ could still affect the estimate, since it potentially could affect the treatment and the outcome. To deal with this a number of assumptions were needed to be established, to move forward in this matter. Assumptions were made concerning:
 
 * the type of variables we were dealing with (e.g., $\mathbb{N}^+$ and $\mathbb{R}$).
-* effect sizes (where we exhaustively tried all variations for realistic effect sizes).
+* effect sizes (where we exhaustively tried many variations for realistic effect sizes).
 * sample sizes $N$ (where we tried several levels, i.e., $10, 15, \ldots, 100$).
 
 The analysis showed that we can, 
