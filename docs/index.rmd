@@ -25,7 +25,6 @@ library(broom.mixed)
 library(tidyverse)
 library(dagitty)
 library(rethinking)
-library(rethinking)
 library(doParallel)
 library(plotly)
 library(patchwork)
@@ -151,18 +150,18 @@ If we continue with the example, we can collect the true effect's lower confiden
 tidy(with_skills, conf.int = TRUE) |>
   filter(term == "lang") |>
   pull(conf.low) |>
-  tip(confounder_outcome_effect = 1.5)
+  tip_coef(confounder_outcome_effect = 1.5)
 ```
 
 then a hypothetical unmeasured continuous confounder with $\beta_{\mathrm{Skills}} = 1.5$ and $\mathrm{SMD} \approx -2.3$, would cancel out the effect (in our case $0.4$) of Lang on Qual. Hence, given our assumptions, a 1-unit change in an unmeasured confounder (Skills) leading to a 1.5-unit change in Qual and, *et voilà*, you would not have a Nature paper. Visualizing what this means might help.
 
-Assume we have som quality measure we're interested in distributed as $\mathrm{Normal}(45,1.5)$ (this could for example be the average number of bugs per $x$ lines of code introduced into a system by any language). Our scaled difference that we received above (i.e., $-2.3$) can be transformed to a quality score by multiplying with $\sigma = 1.5$ (our assumed dispersion), i.e., $1.5 \cdot -2.3 \approx -3.45$. This implies that between two categories (Java and Python) we would need to see a difference of approximately $3.45$ bugs in a quality score when implementing a feature. Is this unlikely? Perhaps; context matters. 
+Assume we have som quality measure we're interested in distributed as $\mathrm{Normal}(45,5)$ (this could for example be the average number of bugs per $x$ lines of code introduced into a system by any language). Our scaled difference that we received above (i.e., $0.262$) can be transformed to a quality score by multiplying with $\sigma = 5$ (our assumed dispersion), i.e., $5 \cdot 0.262 \approx 1.3$. This implies that between two categories (Java and Python) we would need to see a difference of $\approx 1.3$ bugs in a quality score when implementing a feature. Is this unlikely? Perhaps; context matters. 
 
 However, as an empirical researcher you might not want to bet your life on it if you look at the plot below; this is how large a difference there would be between the two languages. More importantly, you should present these results to your readers and argue for why it is either a) unlikely that a counfounder exists, or b) go measure the latent variable Skills carefully.
 
 ```{r, echo=FALSE, out.width="60%", fig.align="center", fig.cap="The difference between language on the outcome scale."}
 tip_c <- tibble(x = sample(0:1, n, replace = TRUE)) |>
-  mutate(qs = rnorm(n, mean = 45 + (-2.3 * 1.5 * x), sd = 1.5))
+  mutate(qs = rnorm(n, mean = 45 + (0.262 * 5 * x), sd = 5))
 
 tip_c_avg <- tip_c |>
   group_by(x) |>
@@ -173,7 +172,8 @@ p <- ggplot(tip_c, aes(x = qs, fill = factor(x))) +
   geom_vline(data = tip_c_avg, aes(xintercept = avg, color = factor(x))) +
   scale_fill_grey() + theme_classic() +
   theme(legend.position = "none") +
-  labs(y = "", x = "Quality score")
+  labs(y = "", x = "Quality score") +
+  theme(text=element_text(size = 30))
 
 ggplotly(p)
 ```
@@ -204,7 +204,7 @@ For the sake of completness we'll assume $\mathrm{SMD} = -2.3$ to validate the r
 tidy(with_skills, conf.int = TRUE) |>
   filter(term == "lang") |>
   pull(conf.low) |>
-  tip(exposure_confounder_effect = -2.3)
+  tip_coef(exposure_confounder_effect = -2.3)
 ```
 
 Above we see that $\beta_{\mathrm{Skills}} \approx 1.50$ (i.e., the confounder_outome_effect), thus we have an indication that this works both ways. Given that we have introduced two distinct concepts used to estimate unobserved/unknown confounders, we can now turn our attention to a more involved example.
@@ -259,7 +259,7 @@ udag <- dagify(
 )
 
 df <- udag |>
-  node_canonical() |>
+  tidy_dagitty() |>
   mutate(var_labs = var_labs[name], cols = col_labs[name])
 
 ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
@@ -294,7 +294,7 @@ col_labs <- c(
 )
 
 df <- udag |>
-  node_canonical() |>
+  tidy_dagitty() |>
   mutate(var_labs = var_labs[name], cols = col_labs[name])
 
 ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
@@ -381,7 +381,7 @@ udag <- dagify(
 )
 
 df <- udag |>
-  node_canonical() |>
+  tidy_dagitty() |>
   mutate(var_labs = var_labs[name], cols = col_labs[name])
 
 ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
@@ -656,7 +656,7 @@ udag <- dagify(
 )
 
 df <- udag |>
-  node_canonical() |>
+  tidy_dagitty() |>
   mutate(var_labs = var_labs[name], cols = col_labs[name])
 
 ggplot(data = df, mapping = aes(x = x, y = y, xend = xend, yend = yend)) +
@@ -719,7 +719,7 @@ p1 <- tip_coef(es, confounder_outcome_effect = ce_pos, verbose = FALSE) |>
   annotate(geom = "point", x = 0.2, y = 1.5, colour = "#CC79A7", size = 4) +
   xlab(expression(italic(β)[ce])) +
   ylab("SMD") +
-  theme_minimal() +
+  theme_minimal(base_size = 20) +
   guides(color = guide_legend(reverse = TRUE)) +
   labs(color = expression(italic(β)[ts]))
 
@@ -732,7 +732,7 @@ p2 <- tip_coef(es, confounder_outcome_effect = ce_neg, verbose = FALSE) |>
   scale_colour_manual(values = palette) +
   xlab("") +
   ylab("") +
-  theme_classic() +
+  theme_classic(base_size = 16) +
   theme(legend.position = "none")
 
 p1 + annotation_custom(ggplotGrob(p2), xmin = 0.27, xmax = 0.50,
