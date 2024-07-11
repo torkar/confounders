@@ -1,3 +1,4 @@
+[![DOI](https://zenodo.org/badge/670156015.svg)](https://zenodo.org/doi/10.5281/zenodo.12721690)
 # Replication package for study on confounders
 
 The repository contains scripts for replication and evaluation of the methodology used in the manuscript.
