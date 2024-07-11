@@ -719,7 +719,7 @@ p1 <- tip_coef(es, confounder_outcome_effect = ce_pos, verbose = FALSE) |>
   annotate(geom = "point", x = 0.2, y = 1.5, colour = "#CC79A7", size = 4) +
   xlab(expression(italic(β)[ce])) +
   ylab("SMD") +
-  theme_minimal(base_size = 20) +
+  theme_minimal(base_size = 28) +
   guides(color = guide_legend(reverse = TRUE)) +
   labs(color = expression(italic(β)[ts]))
 
@@ -732,7 +732,7 @@ p2 <- tip_coef(es, confounder_outcome_effect = ce_neg, verbose = FALSE) |>
   scale_colour_manual(values = palette) +
   xlab("") +
   ylab("") +
-  theme_classic(base_size = 16) +
+  theme_classic(base_size = 22) +
   theme(legend.position = "none")
 
 p1 + annotation_custom(ggplotGrob(p2), xmin = 0.27, xmax = 0.50,
