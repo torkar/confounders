@@ -129,9 +129,9 @@ we see that there are two arrows going from Skills. First, we have $\mathrm{Skil
 
 The SMD is the confounder's effect on the different groups in Lang (e.g., Java and Python). In math, it's something like this:
 
-$$\mathrm{SMD} = \frac{\overline{\mathrm{Skills}}_{\mathrm{Java}} - \overline{\mathrm{Skills}}_{\mathrm{Python}}}{\sigma_{\mathrm{Lang}}}$$
+$$\mathrm{SMD} = \frac{\overline{\mathrm{Skills}}_{\mathrm{Java}} - \overline{\mathrm{Skills}}_{\mathrm{Python}}}{\sigma_{\mathrm{Skills}}}$$
 
-The difference in mean between Java and Python can then, by using SMD, be represented as a difference in $\sigma$. For example, a $3\sigma$, $1\sigma$, or $0.1\sigma$ difference between two categories (since we divide it by $\sigma_{\mathrm{Lang}}$).
+The difference in mean between Java and Python can then, by using SMD, be represented as a difference in $\sigma$. For example, a $3\sigma$, $1\sigma$, or $0.1\sigma$ difference between two categories (since we divide it by $\sigma_{\mathrm{Skills}}$).
 
 If we next look at the other arrow ($\mathrm{Skills} \rightarrow \mathrm{Qual}$), we don't need to think about the SMD since Skills is affecting the outcome Qual and not the treatment Lang. Here we can simply estimate the effect as a regular $\beta$ estimate that we're used to, i.e., in our case the $\beta_{\mathrm{Skills}}$ estimate of our confounder Skills. (One could for example say that $\beta_{\mathrm{Skills}} = 3$ meaning that a 1-unit change in Skills would imply a 3-unit change in Qual.)
 
