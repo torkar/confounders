@@ -127,9 +127,9 @@ ggdag(my_dag) + theme_dag()
 
 we see that there are two arrows going from Skills. First, we have $\mathrm{Skills} \rightarrow \mathrm{Lang}$ and then we have $\mathrm{Skills} \rightarrow \mathrm{Qual}$. These two edges are dependent on each other. If we want to assess the effect of Skills on Lang, one often talks about the Scaled Mean Difference (SMD).
 
-The SMD is the confounder's effect on the different groups in Lang (e.g., Java and Python). In math, it's something like this:
+The SMD is the confounder's average effect on the different groups in Lang (e.g., Java and Python). In math, it's something like this:
 
-$$\mathrm{SMD} = \frac{\overline{\mathrm{Skills}}_{\mathrm{Java}} - \overline{\mathrm{Skills}}_{\mathrm{Python}}}{\sigma_{\mathrm{Skills}}}$$
+$$\mathrm{SMD}[\mathrm{Skill}/\mathrm{Lang}] = \frac{\mathrm{mean}(\mathrm{Skill} \mid \mathrm{Python})}{\mathrm{sd}(\mathrm{Skill} \mid \mathrm{Python})}  - \frac{\mathrm{mean}(\mathrm{Skill} \mid \mathrm{Java})}{\mathrm{sd}(\mathrm{Skill} \mid \mathrm{Java})}$$
 
 The difference in mean between Java and Python can then, by using SMD, be represented as a difference in $\sigma$. For example, a $3\sigma$, $1\sigma$, or $0.1\sigma$ difference between two categories (since we divide it by $\sigma_{\mathrm{Skills}}$).
 
